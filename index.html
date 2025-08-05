@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" href="https://public-frontend-cos.metadl.com/mgx/img/favicon.png" type="image/png">
+  <title>Solana Memory Game - Win SOL Prizes</title>
+  <meta name="description" content="Play the Solana Memory Game and compete in tournaments for SOL prizes. Match cards, track your score, and climb the leaderboard!" />
+  <meta name="author" content="MGX" />
+
+  <meta property="og:title" content="Solana Memory Game with Tournaments" />
+  <meta property="og:description" content="Match pairs of cards, compete in tournaments, and win SOL prizes in this exciting memory game on Solana." />
+  <meta property="og:type" content="website" />
+
+  <!-- Custom styles for card flipping -->
+  <style>
+    .rotate-y-180 {
+      transform: rotateY(180deg);
+    }
+    .backface-hidden {
+      backface-visibility: hidden;
+    }
+    .wallet-adapter-button-custom {
+      background-color: rgba(0, 0, 0, 0.7) !important;
+      border-color: #d97706 !important;
+      border-width: 1px !important;
+      color: #f59e0b !important;
+      font-family: inherit !important;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+
+</html>
