@@ -331,9 +331,9 @@ export default function MemoryGame() {
   // Render card
   const renderCard = (card: Card, index: number) => {
     return (
-      <div 
+      <div
         key={card.id}
-        className="perspective-500 aspect-square cursor-pointer" 
+        className="w-full perspective-500 aspect-square cursor-pointer"
         onClick={() => handleCardClick(index)}
       >
         <div 
@@ -552,7 +552,7 @@ export default function MemoryGame() {
           </div>
           
           {/* Game Board */}
-          <div className="bg-card rounded-lg p-4 border max-w-4xl mx-auto">
+          <div className="bg-card rounded-lg p-4 border max-w-5xl w-full mx-auto">
             {cards.length > 0 ? (
               <div className={`grid ${getGridColumns()} gap-4 sm:gap-6 md:gap-8`}>
                 {cards.map((card, index) => renderCard(card, index))}
