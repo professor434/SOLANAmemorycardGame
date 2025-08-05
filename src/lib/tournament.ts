@@ -268,54 +268,67 @@ export class TournamentManager {
       return [];
     }
   }
-}
 
-/**
- * Create initial tournaments if none exist
- * (This should be called when the app initializes)
- */
-export const initializeTournaments = (): void => {
-  try {
-    const existingTournaments = LeaderboardManager.getTournaments();
-    
-    if (existingTournaments.length === 0) {
-      // Create initial tournaments with different difficulties
-      const now = new Date();
-      
-      // Create an "easy" tournament ending in 1 day
-      const easyEndTime = new Date(now);
-      easyEndTime.setDate(now.getDate() + 1);
-      TournamentManager.createTournament(
-        'Easy Tournament',
-        0.01, // 0.01 SOL entry fee
-        now,
-        easyEndTime,
-        'easy'
-      );
-      
-      // Create a "medium" tournament ending in 3 days
-      const mediumEndTime = new Date(now);
-      mediumEndTime.setDate(now.getDate() + 3);
-      TournamentManager.createTournament(
-        'Medium Tournament',
-        0.05, // 0.05 SOL entry fee
-        now,
-        mediumEndTime,
-        'medium'
-      );
-      
-      // Create a "hard" tournament ending in 7 days
-      const hardEndTime = new Date(now);
-      hardEndTime.setDate(now.getDate() + 7);
-      TournamentManager.createTournament(
-        'Hard Tournament',
-        0.1, // 0.1 SOL entry fee
-        now,
-        hardEndTime,
-        'hard'
-      );
+  /**
+   * Get all currently active tournaments
+   */
+  static getActiveTournaments(): Tournament[] {
+    try {
+      const tournaments = LeaderboardManager.getTournaments();
+      return tournaments.filter(t => t.status === 'active');
+    } catch (error) {
+      console.error('Error getting active tournaments:', error);
+      return [];
     }
-  } catch (error) {
-    console.error('Error initializing tournaments:', error);
   }
-};
+
+  /**
+   * Create initial tournaments if none exist
+   * (This should be called when the app initializes)
+   */
+  static initializeTournaments(): void {
+    try {
+      const existingTournaments = LeaderboardManager.getTournaments();
+
+      if (existingTournaments.length === 0) {
+        // Create initial tournaments with different difficulties
+        const now = new Date();
+
+        // Create an "easy" tournament ending in 1 day
+        const easyEndTime = new Date(now);
+        easyEndTime.setDate(now.getDate() + 1);
+        TournamentManager.createTournament(
+          'Easy Tournament',
+          0.01, // 0.01 SOL entry fee
+          now,
+          easyEndTime,
+          'easy'
+        );
+
+        // Create a "medium" tournament ending in 3 days
+        const mediumEndTime = new Date(now);
+        mediumEndTime.setDate(now.getDate() + 3);
+        TournamentManager.createTournament(
+          'Medium Tournament',
+          0.05, // 0.05 SOL entry fee
+          now,
+          mediumEndTime,
+          'medium'
+        );
+
+        // Create a "hard" tournament ending in 7 days
+        const hardEndTime = new Date(now);
+        hardEndTime.setDate(now.getDate() + 7);
+        TournamentManager.createTournament(
+          'Hard Tournament',
+          0.1, // 0.1 SOL entry fee
+          now,
+          hardEndTime,
+          'hard'
+        );
+      }
+    } catch (error) {
+      console.error('Error initializing tournaments:', error);
+    }
+  }
+}
