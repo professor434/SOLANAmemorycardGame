@@ -12,7 +12,7 @@ import { Spinner } from '@/components/ui/spinner';
 import WalletButton from '@/components/WalletButton';
 import Leaderboard from '@/components/Leaderboard';
 import { LeaderboardManager } from '@/lib/leaderboard';
-import { TournamentManager } from '@/lib/tournament';
+import { TournamentManager, initializeTournaments } from '@/lib/tournament';
 import { formatTime, shuffleArray } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 
@@ -79,7 +79,7 @@ export default function MemoryGame() {
   // Initialize game on component mount
   useEffect(() => {
     // Initialize tournaments system
-    TournamentManager.initializeTournaments();
+    initializeTournaments();
     loadActiveTournaments();
     
     return () => {
@@ -552,9 +552,9 @@ export default function MemoryGame() {
           </div>
           
           {/* Game Board */}
-          <div className="bg-card rounded-lg p-4 border max-w-3xl mx-auto">
+          <div className="bg-card rounded-lg p-4 border max-w-4xl mx-auto">
             {cards.length > 0 ? (
-              <div className={`grid ${getGridColumns()} gap-4 sm:gap-6`}>
+              <div className={`grid ${getGridColumns()} gap-4 sm:gap-6 md:gap-8`}>
                 {cards.map((card, index) => renderCard(card, index))}
               </div>
             ) : (
