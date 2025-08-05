@@ -278,30 +278,29 @@ export class TournamentManager {
       return [];
     }
   }
-}
 
-/**
- * Create initial tournaments if none exist
- * (This should be called when the app initializes)
- */
-export function initializeTournaments(): void {
-  try {
-    const existingTournaments = LeaderboardManager.getTournaments();
+  /**
+   * Create initial tournaments if none exist
+   */
+  static initializeTournaments(): void {
+    try {
+      const existingTournaments = LeaderboardManager.getTournaments();
 
-    if (existingTournaments.length === 0) {
-      // Create a single medium difficulty tournament
-      const now = new Date();
-      const mediumEndTime = new Date(now);
-      mediumEndTime.setDate(now.getDate() + 3);
-      TournamentManager.createTournament(
-        'Medium Tournament',
-        0.1, // 0.1 SOL entry fee
-        now,
-        mediumEndTime,
-        'medium'
-      );
+      if (existingTournaments.length === 0) {
+        // Create a single medium difficulty tournament
+        const now = new Date();
+        const mediumEndTime = new Date(now);
+        mediumEndTime.setDate(now.getDate() + 3);
+        TournamentManager.createTournament(
+          'Medium Tournament',
+          0.1, // 0.1 SOL entry fee
+          now,
+          mediumEndTime,
+          'medium'
+        );
+      }
+    } catch (error) {
+      console.error('Error initializing tournaments:', error);
     }
-  } catch (error) {
-    console.error('Error initializing tournaments:', error);
   }
 }

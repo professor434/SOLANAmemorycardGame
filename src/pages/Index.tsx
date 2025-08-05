@@ -12,7 +12,7 @@ import { Spinner } from '@/components/ui/spinner';
 import WalletButton from '@/components/WalletButton';
 import Leaderboard from '@/components/Leaderboard';
 import { LeaderboardManager } from '@/lib/leaderboard';
-import { TournamentManager, initializeTournaments } from '@/lib/tournament';
+import { TournamentManager } from '@/lib/tournament';
 import { formatTime, shuffleArray } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 
@@ -79,7 +79,7 @@ export default function MemoryGame() {
   // Initialize game on component mount
   useEffect(() => {
     // Initialize tournaments system
-    initializeTournaments();
+    TournamentManager.initializeTournaments();
     loadActiveTournaments();
     
     return () => {
@@ -333,21 +333,21 @@ export default function MemoryGame() {
     return (
       <div
         key={card.id}
-        className="w-full perspective-500 aspect-square cursor-pointer"
+        className="w-full max-w-[140px] aspect-square cursor-pointer perspective-500 transition-transform duration-150"
         onClick={() => handleCardClick(index)}
       >
-        <div 
+        <div
           className={`relative w-full h-full transform-style-3d transition-transform duration-500 ${
             card.isFlipped ? 'rotate-y-180' : ''
           }`}
         >
           {/* Card Back */}
-          <div 
-            className={`absolute w-full h-full backface-hidden rounded-md bg-gradient-to-br from-violet-500 to-indigo-800 border-2 ${
+          <div
+            className={`absolute w-full h-full backface-hidden rounded-[18px] bg-gradient-to-br from-violet-500 to-indigo-800 border-2 ${
               card.isMatched ? 'border-green-500' : 'border-violet-400'
             } shadow-lg flex items-center justify-center`}
           >
-            <img 
+            <img
               src="/assets/images/cards/card-back.png"
               alt="Card Back"
               className="w-2/3 h-2/3 object-contain opacity-80"
@@ -355,12 +355,12 @@ export default function MemoryGame() {
           </div>
           
           {/* Card Front */}
-          <div 
-            className={`absolute w-full h-full backface-hidden rotate-y-180 rounded-md bg-white border-2 ${
+          <div
+            className={`absolute w-full h-full backface-hidden rotate-y-180 rounded-[18px] bg-white border-2 ${
               card.isMatched ? 'border-green-500' : 'border-gray-200'
             } shadow-lg flex items-center justify-center overflow-hidden`}
           >
-            <img 
+            <img
               src={card.imageUrl}
               alt="Card"
               className="w-full h-full object-contain p-2"
@@ -552,9 +552,9 @@ export default function MemoryGame() {
           </div>
           
           {/* Game Board */}
-          <div className="bg-card rounded-lg p-4 border max-w-5xl w-full mx-auto">
+          <div className="w-[90vw] max-w-[850px] mx-auto mt-8 p-4 min-h-[420px] bg-black/20 rounded-2xl">
             {cards.length > 0 ? (
-              <div className={`grid ${getGridColumns()} gap-4 sm:gap-6 md:gap-8`}>
+              <div className={`grid ${getGridColumns()} gap-5 justify-items-center`}>
                 {cards.map((card, index) => renderCard(card, index))}
               </div>
             ) : (
@@ -563,7 +563,7 @@ export default function MemoryGame() {
                 <p className="text-muted-foreground mb-4">
                   Select your game options and click 'Start Game' to begin.
                 </p>
-                <img 
+                <img
                   src="/assets/images/cards/card-back.png"
                   alt="Memory Game"
                   className="w-24 h-24 object-contain opacity-60"
