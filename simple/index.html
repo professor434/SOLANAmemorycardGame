@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Solana Memory Game</title>
+  <!--
+    A simple, self‑contained implementation of the Solana memory game.  This
+    page uses no external dependencies and can run entirely offline.  It
+    loads a selection of card images from the adjacent images folder and
+    allows the player to choose a difficulty and card set before starting
+    the game.  Scores are recorded in the browser's localStorage and the
+    top results are displayed in the leaderboard below the board.  The
+    controls, layout and styling were chosen to echo the aesthetic of the
+    original project while remaining lightweight.
+  -->
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <img src="images/logo.png" alt="Solana Memory Game Logo" class="logo" />
+    <h1>Solana Memory Game</h1>
+  </header>
+  <main>
+    <section class="controls">
+      <label for="wallet">Wallet:</label>
+      <input id="wallet" type="text" placeholder="Enter your wallet or alias" />
+      <label for="difficulty">Difficulty:</label>
+      <select id="difficulty">
+        <option value="6">Easy (6 pairs)</option>
+        <option value="8" selected>Medium (8 pairs)</option>
+        <option value="16">Hard (16 pairs)</option>
+      </select>
+      <label for="set">Card Set:</label>
+      <select id="set">
+        <option value="set1" selected>Set 1</option>
+        <option value="set2">Set 2</option>
+        <option value="both">Both</option>
+      </select>
+      <label for="tournamentSelect">Tournament:</label>
+      <select id="tournamentSelect">
+        <!-- populated by script -->
+      </select>
+      <button id="startBtn">Start Game</button>
+    </section>
+    <section class="scoreboard">
+      <div id="movesDisplay">Moves: 0</div>
+      <div id="timeDisplay">Time: 0s</div>
+      <div id="matchesDisplay">Matched: 0/0</div>
+    </section>
+    <section id="gameBoard" class="game-board"></section>
+    <section class="leaderboard">
+      <h2>Leaderboard</h2>
+      <table id="leaderboardTable">
+        <thead>
+          <tr>
+            <th>Rank</th>
+            <th>Wallet</th>
+            <th>Moves</th>
+            <th>Time (s)</th>
+            <th>Pairs</th>
+            <th>Date</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+  </main>
+  <script src="script.js"></script>
+</body>
+</html>

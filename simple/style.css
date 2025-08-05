@@ -1,0 +1,199 @@
+/*
+ * Styling for the Solana Memory Game.
+ *
+ * The design embraces a dark, cyber‑inspired palette similar to the
+ * original Solana aesthetic.  Cards flip smoothly thanks to 3D
+ * transforms and the layout adapts to different board sizes without
+ * explicit breakpoints.  The leaderboard uses a semi‑transparent
+ * backdrop so it stands out against the background image.
+ */
+
+/* Reset and base styles */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif,
+    "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  background: #0f172a url('images/background.png') center/cover no-repeat fixed;
+  color: #f8fafc;
+  min-height: 100vh;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  border-bottom: 1px solid #334155;
+}
+
+header .logo {
+  height: 40px;
+}
+
+main {
+  padding: 1rem;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+/* Controls */
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid #334155;
+}
+
+.controls label {
+  margin-right: 0.25rem;
+}
+
+.controls select,
+.controls button {
+  padding: 0.35rem 0.6rem;
+  background: #1e293b;
+  color: #f8fafc;
+  border: 1px solid #475569;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+
+.controls input {
+  padding: 0.35rem 0.6rem;
+  background: #0f172a;
+  color: #f8fafc;
+  border: 1px solid #475569;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  width: 150px;
+}
+
+.controls button {
+  background: #334155;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+.controls button:hover {
+  background: #475569;
+}
+
+/* Scoreboard display */
+.scoreboard {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid #334155;
+  font-size: 0.9rem;
+}
+
+/* Game board */
+.game-board {
+  display: grid;
+  gap: 0.5rem;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+}
+
+/* Each card uses a nested structure for the flip effect */
+.card {
+  width: 90px;
+  height: 130px;
+  position: relative;
+  perspective: 1000px;
+  cursor: pointer;
+}
+
+.card-inner {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  transition: transform 0.6s;
+  transform-style: preserve-3d;
+}
+
+.card.flipped .card-inner {
+  transform: rotateY(180deg);
+}
+
+.card-face {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.card-back {
+  background: #1e293b url('images/cards/card-back.png') center/cover no-repeat;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  color: #475569;
+}
+
+.card-front {
+  transform: rotateY(180deg);
+  background-size: cover;
+  background-position: center;
+}
+
+/* Leaderboard */
+.leaderboard {
+  background: rgba(0, 0, 0, 0.5);
+  padding: 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid #334155;
+}
+
+.leaderboard h2 {
+  margin-bottom: 0.5rem;
+  font-size: 1.25rem;
+}
+
+.leaderboard table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.leaderboard th,
+.leaderboard td {
+  padding: 0.4rem;
+  border-bottom: 1px solid #334155;
+  text-align: center;
+}
+
+.leaderboard th {
+  background: #1e293b;
+  font-weight: 600;
+}
+
+.leaderboard tbody tr:nth-child(odd) {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.leaderboard tbody tr:nth-child(even) {
+  background: rgba(0, 0, 0, 0.1);
+}
