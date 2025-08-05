@@ -22,9 +22,8 @@ export const SolanaWalletProvider: FC<SolanaWalletProviderProps> = ({ children }
     () => [
       new PhantomWalletAdapter(),
       new SolflareWalletAdapter(),
-      new BackpackWalletAdapter(),
     ],
-    [network]
+    []
   );
 
   return (
