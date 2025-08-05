@@ -100,10 +100,8 @@ export class TournamentManager {
       }
       
       // Make payment for entry fee
-      try {
-        await makePayment(connection, wallet, tournament.entryFee);
-      } catch (error) {
-        // Payment failed, don't proceed with entering tournament
+      const paid = await makePayment(connection, wallet, tournament.entryFee);
+      if (!paid) {
         return false;
       }
       

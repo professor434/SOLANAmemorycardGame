@@ -31,15 +31,25 @@ const DIFFICULTY_SETTINGS = {
   hard: { cardPairs: 12, timeLimit: 240 },     // 24 cards
 };
 
-// Define card image sets
-const CARD_SETS = {
-  set1: Array.from({ length: 8 }, (_, i) => `/assets/images/cards/set1_${i + 1}.png`),
-  set2: Array.from({ length: 8 }, (_, i) => `/assets/images/cards/set2_${i + 1}.png`),
+// Define card image sets (extend by adding counts to CARD_SET_COUNTS)
+const CARD_SET_COUNTS: Record<string, number> = {
+  set1: 8,
+  set2: 8,
 };
+
+const CARD_SETS: Record<string, string[]> = Object.fromEntries(
+  Object.entries(CARD_SET_COUNTS).map(([set, count]) => [
+    set,
+    Array.from({ length: count }, (_, i) => `/assets/images/cards/${set}_${i + 1}.png`),
+  ])
+);
+
+type CardSetKey = keyof typeof CARD_SETS;
 
 export default function MemoryGame() {
   const { connection } = useConnection();
-  const { publicKey, connected } = useWallet();
+  const wallet = useWallet();
+  const { publicKey, connected } = wallet;
   const isMobile = useIsMobile();
   
   // Game state
@@ -54,7 +64,7 @@ export default function MemoryGame() {
   const [gameCompleteTime, setGameCompleteTime] = useState<number | null>(null);
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
-  const [cardSet, setCardSet] = useState<'set1' | 'set2'>('set1');
+  const [cardSet, setCardSet] = useState<CardSetKey>(Object.keys(CARD_SETS)[0] as CardSetKey);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isTournamentMode, setIsTournamentMode] = useState<boolean>(false);
   const [selectedTournament, setSelectedTournament] = useState<string | null>(null);
@@ -103,11 +113,17 @@ export default function MemoryGame() {
     // Get configuration based on difficulty
     const config = DIFFICULTY_SETTINGS[difficulty];
     const cardImages = CARD_SETS[cardSet];
-    
+
     // Create pairs of cards based on difficulty
     const cardPairs = config.cardPairs;
-    
+
     // Ensure we have enough images for the selected difficulty
+    if (cardImages.length < cardPairs) {
+      toast.error('Not enough card images for this difficulty');
+      setIsLoading(false);
+      return;
+    }
+
     const selectedImages = cardImages.slice(0, cardPairs);
     
     // Create pairs
@@ -162,6 +178,27 @@ export default function MemoryGame() {
     }, 1000);
     
     setIsLoading(false);
+  };
+
+  const startGame = async () => {
+    if (isTournamentMode) {
+      if (!selectedTournament) {
+        toast.error('Select a tournament to enter');
+        return;
+      }
+
+      if (!connected) {
+        toast.error('Connect your wallet to enter the tournament');
+        return;
+      }
+
+      setIsLoading(true);
+      const entered = await TournamentManager.enterTournament(connection, wallet, selectedTournament);
+      setIsLoading(false);
+      if (!entered) return;
+    }
+
+    initializeGame();
   };
 
   // Handle card click
@@ -441,24 +478,24 @@ export default function MemoryGame() {
                       
                       <div className="space-y-2">
                         <label className="text-sm font-medium">Card Set</label>
-                        <Select 
-                          value={cardSet}
-                          onValueChange={(value) => setCardSet(value as 'set1' | 'set2')}
-                        >
+                        <Select value={cardSet} onValueChange={(value) => setCardSet(value as CardSetKey)}>
                           <SelectTrigger>
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="set1">Solana Symbols</SelectItem>
-                            <SelectItem value="set2">Crypto Icons</SelectItem>
+                            {Object.keys(CARD_SETS).map((set) => (
+                              <SelectItem key={set} value={set}>
+                                {set.replace('set', 'Set ')}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       </div>
                     </>
                   )}
                   
-                  <Button 
-                    onClick={initializeGame}
+                  <Button
+                    onClick={startGame}
                     disabled={isTournamentMode && (!selectedTournament || !connected)}
                     className="mt-2"
                   >
@@ -515,9 +552,9 @@ export default function MemoryGame() {
           </div>
           
           {/* Game Board */}
-          <div className="bg-card rounded-lg p-4 border">
+          <div className="bg-card rounded-lg p-4 border max-w-3xl mx-auto">
             {cards.length > 0 ? (
-              <div className={`grid ${getGridColumns()} gap-2 sm:gap-4`}>
+              <div className={`grid ${getGridColumns()} gap-4 sm:gap-6`}>
                 {cards.map((card, index) => renderCard(card, index))}
               </div>
             ) : (
