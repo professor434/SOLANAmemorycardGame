@@ -12,8 +12,9 @@ import { Spinner } from '@/components/ui/spinner';
 import WalletButton from '@/components/WalletButton';
 import Leaderboard from '@/components/Leaderboard';
 import { LeaderboardManager } from '@/lib/leaderboard';
-import { TournamentManager, initializeTournaments } from '@/lib/tournament';
+import { TournamentManager } from '@/lib/tournament';
 import { formatTime, shuffleArray } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 // Define card types
 interface Card {
@@ -39,6 +40,7 @@ const CARD_SETS = {
 export default function MemoryGame() {
   const { connection } = useConnection();
   const { publicKey, connected } = useWallet();
+  const isMobile = useIsMobile();
   
   // Game state
   const [cards, setCards] = useState<Card[]>([]);
@@ -67,7 +69,7 @@ export default function MemoryGame() {
   // Initialize game on component mount
   useEffect(() => {
     // Initialize tournaments system
-    initializeTournaments();
+    TournamentManager.initializeTournaments();
     loadActiveTournaments();
     
     return () => {
@@ -334,6 +336,17 @@ export default function MemoryGame() {
 
   // Determine game grid columns based on difficulty
   const getGridColumns = () => {
+    if (isMobile) {
+      switch (difficulty) {
+        case 'easy':
+        case 'medium':
+          return 'grid-cols-2';
+        case 'hard':
+          return 'grid-cols-3';
+        default:
+          return 'grid-cols-2';
+      }
+    }
     switch (difficulty) {
       case 'easy': return 'grid-cols-3 sm:grid-cols-4';
       case 'medium': return 'grid-cols-4';

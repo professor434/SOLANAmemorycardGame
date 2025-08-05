@@ -3,12 +3,10 @@ import { WalletContextState } from '@solana/wallet-adapter-react';
 import { toast } from 'sonner';
 
 // Treasury wallet address - The wallet that will receive entry fees
-const TREASURY_WALLET = new PublicKey('J2Vz7te8H8gfUSV6epJtLAJsyAjmRpee5cjjDVuR8tWn');
+const TREASURY_WALLET = new PublicKey('2WPrEmPFTWfG9WfMDd3W6SGYUvFeTgLbNpAwbJ5nvX4c');
 
-// Fee settings
-const FEE_PERCENTAGE = 0.005; // 0.5%
-const FIXED_FEE_THRESHOLD = 0.1; // For transactions >= 0.1 SOL
-const FIXED_FEE = 0.01; // Fixed 0.01 SOL fee for transactions above threshold
+// Fee settings (0.1%)
+const FEE_PERCENTAGE = 0.001; // 0.1%
 
 /**
  * Make a payment of SOL
@@ -25,15 +23,7 @@ export async function makePayment(
     }
 
     // Calculate fee
-    let fee = amount * FEE_PERCENTAGE;
-    if (amount >= FIXED_FEE_THRESHOLD) {
-      fee = FIXED_FEE;
-    }
-
-    // Make sure fee is reasonable
-    if (fee <= 0) {
-      fee = 0.001; // Minimum fee of 0.001 SOL
-    }
+    const fee = amount * FEE_PERCENTAGE;
 
     const totalAmount = amount + fee;
 
