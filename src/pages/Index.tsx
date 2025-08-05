@@ -12,7 +12,7 @@ import { Spinner } from '@/components/ui/spinner';
 import WalletButton from '@/components/WalletButton';
 import Leaderboard from '@/components/Leaderboard';
 import { LeaderboardManager } from '@/lib/leaderboard';
-import { TournamentManager } from '@/lib/tournament';
+import { TournamentManager, initializeTournaments } from '@/lib/tournament';
 import { formatTime, shuffleArray } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 
@@ -79,7 +79,7 @@ export default function MemoryGame() {
   // Initialize game on component mount
   useEffect(() => {
     // Initialize tournaments system
-    TournamentManager.initializeTournaments();
+    initializeTournaments();
     loadActiveTournaments();
     
     return () => {
@@ -333,7 +333,7 @@ export default function MemoryGame() {
     return (
       <div
         key={card.id}
-        className="w-full max-w-[140px] aspect-square cursor-pointer perspective-500 transition-transform duration-150"
+        className="w-full max-w-[160px] min-w-[80px] aspect-square cursor-pointer perspective-500 transition-transform duration-150"
         onClick={() => handleCardClick(index)}
       >
         <div
@@ -552,9 +552,9 @@ export default function MemoryGame() {
           </div>
           
           {/* Game Board */}
-          <div className="w-[90vw] max-w-[850px] mx-auto mt-8 p-4 min-h-[420px] bg-black/20 rounded-2xl">
+          <div className="w-full max-w-[950px] mx-auto mt-8 p-6 min-h-[420px] bg-black/20 rounded-2xl">
             {cards.length > 0 ? (
-              <div className={`grid ${getGridColumns()} gap-5 justify-items-center`}>
+              <div className={`grid ${getGridColumns()} gap-6 justify-items-center`}>
                 {cards.map((card, index) => renderCard(card, index))}
               </div>
             ) : (
