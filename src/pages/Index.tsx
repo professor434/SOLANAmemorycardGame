@@ -106,9 +106,11 @@ export default function MemoryGame() {
         wallet,
         selectedTournament
       );
+
       if (!entered) {
         setIsLoading(false);
         return;
+
       }
     }
 
@@ -308,6 +310,7 @@ export default function MemoryGame() {
     return (
       <div
         key={card.id}
+
 
         className="perspective-500 aspect-square cursor-pointer"
 
