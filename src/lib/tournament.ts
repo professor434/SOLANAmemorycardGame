@@ -332,3 +332,8 @@ export class TournamentManager {
     }
   }
 }
+
+// Convenience function to initialize tournaments without accessing the manager directly
+export function initializeTournaments(): void {
+  TournamentManager.initializeTournaments();
+}

@@ -12,7 +12,7 @@ import { Spinner } from '@/components/ui/spinner';
 import WalletButton from '@/components/WalletButton';
 import Leaderboard from '@/components/Leaderboard';
 import { LeaderboardManager } from '@/lib/leaderboard';
-import { TournamentManager } from '@/lib/tournament';
+import { TournamentManager, initializeTournaments } from '@/lib/tournament';
 import { formatTime, shuffleArray } from '@/lib/utils';
 
 // Define card types
@@ -67,7 +67,7 @@ export default function MemoryGame() {
   // Initialize game on component mount
   useEffect(() => {
     // Initialize tournaments system
-    TournamentManager.initializeTournaments();
+    initializeTournaments();
     loadActiveTournaments();
     
     return () => {
@@ -294,37 +294,37 @@ export default function MemoryGame() {
     return (
       <div 
         key={card.id}
-        className="perspective-500 aspect-square cursor-pointer" 
+        className="perspective-500 aspect-square cursor-pointer"
         onClick={() => handleCardClick(index)}
       >
-        <div 
+        <div
           className={`relative w-full h-full transform-style-3d transition-transform duration-500 ${
             card.isFlipped ? 'rotate-y-180' : ''
           }`}
         >
           {/* Card Back */}
-          <div 
+          <div
             className={`absolute w-full h-full backface-hidden rounded-md bg-gradient-to-br from-violet-500 to-indigo-800 border-2 ${
               card.isMatched ? 'border-green-500' : 'border-violet-400'
             } shadow-lg flex items-center justify-center`}
           >
-            <img 
+            <img
               src="/assets/images/cards/card-back.png"
               alt="Card Back"
-              className="w-2/3 h-2/3 object-contain opacity-80"
+              className="w-3/4 h-3/4 object-contain opacity-80"
             />
           </div>
-          
+
           {/* Card Front */}
-          <div 
+          <div
             className={`absolute w-full h-full backface-hidden rotate-y-180 rounded-md bg-white border-2 ${
               card.isMatched ? 'border-green-500' : 'border-gray-200'
             } shadow-lg flex items-center justify-center overflow-hidden`}
           >
-            <img 
+            <img
               src={card.imageUrl}
               alt="Card"
-              className="w-full h-full object-contain p-2"
+              className="w-full h-full object-contain p-1 sm:p-2"
             />
           </div>
         </div>
@@ -335,16 +335,68 @@ export default function MemoryGame() {
   // Determine game grid columns based on difficulty
   const getGridColumns = () => {
     switch (difficulty) {
-      case 'easy': return 'grid-cols-3 sm:grid-cols-4';
-      case 'medium': return 'grid-cols-4';
-      case 'hard': return 'grid-cols-4 sm:grid-cols-6';
-      default: return 'grid-cols-4';
+      case 'easy':
+        return 'grid-cols-3 sm:grid-cols-4';
+      case 'medium':
+        return 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4';
+      case 'hard':
+        return 'grid-cols-3 sm:grid-cols-4 lg:grid-cols-6';
+      default:
+        return 'grid-cols-4';
     }
   };
 
+  const renderStatsCard = () => (
+    <Card>
+      <CardContent className="pt-6">
+        <div className="grid grid-cols-2 gap-4">
+          <div className="flex flex-col items-center">
+            <span className="text-sm text-muted-foreground mb-1">Moves</span>
+            <span className="text-3xl font-bold">{moves}</span>
+          </div>
+
+          <div className="flex flex-col items-center">
+            <span className="text-sm text-muted-foreground mb-1">Time</span>
+            <span className="text-3xl font-bold font-mono">
+              {formatTime(currentTime)}
+            </span>
+          </div>
+        </div>
+
+        <Separator className="my-4" />
+
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Badge
+              variant={
+                difficulty === 'easy'
+                  ? 'default'
+                  : difficulty === 'medium'
+                  ? 'secondary'
+                  : 'destructive'
+              }
+            >
+              {difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}
+            </Badge>
+
+            {isTournamentMode && (
+              <Badge variant="outline" className="bg-amber-900/20 text-amber-200">
+                Tournament
+              </Badge>
+            )}
+          </div>
+
+          <div className="ml-auto">
+            <WalletButton variant="outline" size="sm" />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
   return (
     <div className="min-h-screen bg-cover bg-center" style={{ backgroundImage: "url('/assets/images/background.png')" }}>
-      <div className="container mx-auto py-8 px-4">
+      <div className="mx-auto max-w-full py-8 px-4">
       <div className="text-center mb-8">
         <img src="/assets/images/logo.png" alt="Solana Memory Game Logo" className="h-24 mx-auto mb-4" />
         <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-purple-400 to-blue-500 bg-clip-text text-transparent mb-2">
@@ -357,152 +409,117 @@ export default function MemoryGame() {
         {/* Game Section */}
         <div className="lg:col-span-2 space-y-6">
           {/* Game Controls */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex flex-col gap-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Game Mode</label>
-                    <Tabs 
-                      defaultValue={isTournamentMode ? "tournament" : "practice"}
-                      className="w-full"
-                      onValueChange={(val) => toggleTournamentMode(val === "tournament")}
-                    >
-                      <TabsList className="grid w-full grid-cols-2">
-                        <TabsTrigger value="practice">Practice</TabsTrigger>
-                        <TabsTrigger value="tournament">Tournament</TabsTrigger>
-                      </TabsList>
-                    </Tabs>
-                  </div>
-                  
-                  {isTournamentMode ? (
+          {!gameActive && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex flex-col gap-4">
                     <div className="space-y-2">
-                      <label className="text-sm font-medium">Tournament</label>
-                      {activeTournaments.length > 0 ? (
-                        <Select 
-                          value={selectedTournament || ''}
-                          onValueChange={(value) => {
-                            setSelectedTournament(value);
-                            // Set difficulty to match tournament
-                            const tournament = activeTournaments.find(t => t.id === value);
-                            if (tournament) {
-                              setDifficulty(tournament.difficulty as 'easy' | 'medium' | 'hard');
-                            }
-                          }}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select Tournament" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {activeTournaments.map((tournament) => (
-                              <SelectItem key={tournament.id} value={tournament.id}>
-                                {tournament.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <div className="bg-muted p-2 rounded text-sm text-center">
-                          No active tournaments available
+                      <label className="text-sm font-medium">Game Mode</label>
+                      <Tabs
+                        defaultValue={isTournamentMode ? "tournament" : "practice"}
+                        className="w-full"
+                        onValueChange={(val) => toggleTournamentMode(val === "tournament")}
+                      >
+                        <TabsList className="grid w-full grid-cols-2">
+                          <TabsTrigger value="practice">Practice</TabsTrigger>
+                          <TabsTrigger value="tournament">Tournament</TabsTrigger>
+                        </TabsList>
+                      </Tabs>
+                    </div>
+
+                    {isTournamentMode ? (
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Tournament</label>
+                        {activeTournaments.length > 0 ? (
+                          <Select
+                            value={selectedTournament || ''}
+                            onValueChange={(value) => {
+                              setSelectedTournament(value);
+                              // Set difficulty to match tournament
+                              const tournament = activeTournaments.find((t) => t.id === value);
+                              if (tournament) {
+                                setDifficulty(tournament.difficulty as 'easy' | 'medium' | 'hard');
+                              }
+                            }}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select Tournament" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {activeTournaments.map((tournament) => (
+                                <SelectItem key={tournament.id} value={tournament.id}>
+                                  {tournament.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <div className="bg-muted p-2 rounded text-sm text-center">
+                            No active tournaments available
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <>
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Difficulty</label>
+                          <Select
+                            value={difficulty}
+                            onValueChange={(value) => setDifficulty(value as 'easy' | 'medium' | 'hard')}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="easy">Easy (6 pairs)</SelectItem>
+                              <SelectItem value="medium">Medium (8 pairs)</SelectItem>
+                              <SelectItem value="hard">Hard (12 pairs)</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
-                      )}
-                    </div>
-                  ) : (
-                    <>
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Difficulty</label>
-                        <Select 
-                          value={difficulty}
-                          onValueChange={(value) => setDifficulty(value as 'easy' | 'medium' | 'hard')}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="easy">Easy (6 pairs)</SelectItem>
-                            <SelectItem value="medium">Medium (8 pairs)</SelectItem>
-                            <SelectItem value="hard">Hard (12 pairs)</SelectItem>
-                          </SelectContent>
-                        </Select>
+
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Card Set</label>
+                          <Select value={cardSet} onValueChange={(value) => setCardSet(value as 'set1' | 'set2')}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="set1">Solana Symbols</SelectItem>
+                              <SelectItem value="set2">Crypto Icons</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </>
+                    )}
+
+                    <Button
+                      onClick={initializeGame}
+                      disabled={isTournamentMode && (!selectedTournament || !connected)}
+                      className="mt-2"
+                    >
+                      {isLoading ? <Spinner size="sm" className="mr-2" /> : null}
+                      Start Game
+                    </Button>
+
+                    {isTournamentMode && !connected && (
+                      <div className="text-sm text-warning text-center">
+                        Connect wallet to play tournament mode
                       </div>
-                      
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Card Set</label>
-                        <Select 
-                          value={cardSet}
-                          onValueChange={(value) => setCardSet(value as 'set1' | 'set2')}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="set1">Solana Symbols</SelectItem>
-                            <SelectItem value="set2">Crypto Icons</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </>
-                  )}
-                  
-                  <Button 
-                    onClick={initializeGame}
-                    disabled={isTournamentMode && (!selectedTournament || !connected)}
-                    className="mt-2"
-                  >
-                    {isLoading ? <Spinner size="sm" className="mr-2" /> : null}
-                    Start Game
-                  </Button>
-                  
-                  {isTournamentMode && !connected && (
-                    <div className="text-sm text-warning text-center">
-                      Connect wallet to play tournament mode
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardContent className="pt-6">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="flex flex-col items-center">
-                    <span className="text-sm text-muted-foreground mb-1">Moves</span>
-                    <span className="text-3xl font-bold">{moves}</span>
-                  </div>
-                  
-                  <div className="flex flex-col items-center">
-                    <span className="text-sm text-muted-foreground mb-1">Time</span>
-                    <span className="text-3xl font-bold font-mono">
-                      {formatTime(currentTime)}
-                    </span>
-                  </div>
-                </div>
-                
-                <Separator className="my-4" />
-                
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Badge variant={difficulty === 'easy' ? 'default' : (difficulty === 'medium' ? 'secondary' : 'destructive')}>
-                      {difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}
-                    </Badge>
-                    
-                    {isTournamentMode && (
-                      <Badge variant="outline" className="bg-amber-900/20 text-amber-200">
-                        Tournament
-                      </Badge>
                     )}
                   </div>
-                  
-                  <div className="ml-auto">
-                    <WalletButton variant="outline" size="sm" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-          
+                </CardContent>
+              </Card>
+
+              {renderStatsCard()}
+            </div>
+          )}
+
+          {gameActive && <div className="mb-4">{renderStatsCard()}</div>}
+
           {/* Game Board */}
-          <div className="bg-card rounded-lg p-4 border">
+          <div className="bg-card rounded-lg p-4 border-2">
             {cards.length > 0 ? (
               <div className={`grid ${getGridColumns()} gap-2 sm:gap-4`}>
                 {cards.map((card, index) => renderCard(card, index))}
