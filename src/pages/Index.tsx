@@ -38,7 +38,8 @@ const CARD_SETS = {
 
 export default function MemoryGame() {
   const { connection } = useConnection();
-  const { publicKey, connected } = useWallet();
+  const wallet = useWallet();
+  const { publicKey, connected } = wallet;
   
   // Game state
   const [cards, setCards] = useState<Card[]>([]);
@@ -92,12 +93,25 @@ export default function MemoryGame() {
   };
 
   // Initialize game with selected options
-  const initializeGame = () => {
+  const initializeGame = async () => {
     if (timer.current) clearInterval(timer.current);
     if (flipTimeout.current) clearTimeout(flipTimeout.current);
 
     setIsLoading(true);
-    
+
+    // If playing in tournament mode, ensure the player has entered
+    if (isTournamentMode && selectedTournament) {
+      const entered = await TournamentManager.enterTournament(
+        connection,
+        wallet,
+        selectedTournament
+      );
+      if (!entered) {
+        setIsLoading(false);
+        return;
+      }
+    }
+
     // Get configuration based on difficulty
     const config = DIFFICULTY_SETTINGS[difficulty];
     const cardImages = CARD_SETS[cardSet];
@@ -244,18 +258,18 @@ export default function MemoryGame() {
       
       try {
         // Add score to leaderboard
-        LeaderboardManager.addScore({
-          playerWallet: publicKey.toString(),
-          score: score,
-          moves: moves,
-          timeCompleted: currentTime,
-          difficulty: difficulty,
-          tournamentId: isTournamentMode ? selectedTournament || undefined : undefined
-        });
-        
+        LeaderboardManager.addScore(
+          publicKey.toString(),
+          score,
+          difficulty,
+          moves,
+          currentTime,
+          isTournamentMode ? selectedTournament || undefined : undefined
+        );
+
         // Refresh leaderboard
         setLeaderboardRefreshTrigger(prev => prev + 1);
-        
+
         toast.success('Your score has been recorded!');
       } catch (error) {
         console.error('Error saving score:', error);
