@@ -12,7 +12,7 @@ import { Spinner } from '@/components/ui/spinner';
 import WalletButton from '@/components/WalletButton';
 import Leaderboard from '@/components/Leaderboard';
 import { LeaderboardManager } from '@/lib/leaderboard';
-import { TournamentManager } from '@/lib/tournament';
+import { TournamentManager, initializeTournaments } from '@/lib/tournament';
 import { formatTime, shuffleArray } from '@/lib/utils';
 
 // Define card types
@@ -68,7 +68,7 @@ export default function MemoryGame() {
   // Initialize game on component mount
   useEffect(() => {
     // Initialize tournaments system
-    TournamentManager.initializeTournaments();
+    initializeTournaments();
     loadActiveTournaments();
     
     return () => {
@@ -308,8 +308,9 @@ export default function MemoryGame() {
     return (
       <div
         key={card.id}
-        className="perspective-500 cursor-pointer"
-        style={{ aspectRatio: '1 / 1' }}
+
+        className="perspective-500 aspect-square cursor-pointer"
+
         onClick={() => handleCardClick(index)}
       >
         <div
