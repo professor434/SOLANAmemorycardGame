@@ -331,4 +331,4 @@ export class TournamentManager {
       console.error('Error initializing tournaments:', error);
     }
   }
-}
+
