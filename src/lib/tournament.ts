@@ -310,7 +310,7 @@ export class TournamentManager {
         mediumEndTime.setDate(now.getDate() + 3);
         TournamentManager.createTournament(
           'Medium Tournament',
-          0.05, // 0.05 SOL entry fee
+          0.1, // 0.1 SOL entry fee
           now,
           mediumEndTime,
           'medium'
@@ -321,7 +321,7 @@ export class TournamentManager {
         hardEndTime.setDate(now.getDate() + 7);
         TournamentManager.createTournament(
           'Hard Tournament',
-          0.1, // 0.1 SOL entry fee
+          0.9, // 0.9 SOL entry fee
           now,
           hardEndTime,
           'hard'
@@ -331,9 +331,4 @@ export class TournamentManager {
       console.error('Error initializing tournaments:', error);
     }
   }
-}
-
-// Convenience function to initialize tournaments without accessing the manager directly
-export function initializeTournaments(): void {
-  TournamentManager.initializeTournaments();
 }
