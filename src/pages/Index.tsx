@@ -574,10 +574,13 @@ export default function MemoryGame() {
         
         {/* Leaderboard Section */}
         <div className="space-y-6">
-          <Leaderboard refreshTrigger={leaderboardRefreshTrigger} />
+          <Leaderboard
+            difficulty={difficulty}
+            refreshTrigger={leaderboardRefreshTrigger}
+          />
         </div>
       </div>
-      
+
       {/* Game Result Dialog */}
       <Dialog open={gameResultDialogOpen} onOpenChange={setGameResultDialogOpen}>
         <DialogContent>

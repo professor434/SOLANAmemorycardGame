@@ -10,10 +10,11 @@ import { Badge } from '@/components/ui/badge';
 
 interface LeaderboardProps {
   difficulty: 'easy' | 'medium' | 'hard';
+  refreshTrigger: number;
   className?: string;
 }
 
-export function Leaderboard({ difficulty, className }: LeaderboardProps) {
+export function Leaderboard({ difficulty, refreshTrigger, className }: LeaderboardProps) {
   const { publicKey } = useWallet();
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [tournamentLeaderboard, setTournamentLeaderboard] = useState<LeaderboardEntry[]>([]);
@@ -66,7 +67,7 @@ export function Leaderboard({ difficulty, className }: LeaderboardProps) {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [difficulty, publicKey]);
+  }, [difficulty, publicKey, refreshTrigger]);
 
   if (loading) {
     return (
