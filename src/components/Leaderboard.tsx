@@ -14,7 +14,7 @@ interface LeaderboardProps {
   className?: string;
 }
 
-export function Leaderboard({ difficulty, refreshTrigger, className }: LeaderboardProps) {
+export default function Leaderboard({ difficulty, refreshTrigger, className }: LeaderboardProps) {
   const { publicKey } = useWallet();
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [tournamentLeaderboard, setTournamentLeaderboard] = useState<LeaderboardEntry[]>([]);
@@ -24,27 +24,22 @@ export function Leaderboard({ difficulty, refreshTrigger, className }: Leaderboa
   const [activeTab, setActiveTab] = useState<string>('regular');
   const [prizeDistribution, setPrizeDistribution] = useState<{ rank: number; percentage: number; amount: number }[]>([]);
 
-  // Load leaderboard and tournament data
+  // Load leaderboard and tournament data whenever inputs change
   useEffect(() => {
     const loadData = () => {
-      // Regular leaderboard
       const regularLeaderboard = LeaderboardManager.getLeaderboardByDifficulty(difficulty);
-      setLeaderboard(regularLeaderboard.slice(0, 10)); // Show top 10
+      setLeaderboard(regularLeaderboard.slice(0, 10));
 
-      // Get active tournament
       const activeTournament = LeaderboardManager.getActiveTournamentByDifficulty(difficulty);
       setTournament(activeTournament);
 
-      // If tournament exists, get tournament leaderboard
       if (activeTournament) {
         const tournamentLeaderboardData = LeaderboardManager.getTournamentLeaderboard(activeTournament.id);
-        setTournamentLeaderboard(tournamentLeaderboardData.slice(0, 10)); // Show top 10
+        setTournamentLeaderboard(tournamentLeaderboardData.slice(0, 10));
 
-        // Calculate prize distribution
         const prizes = TournamentManager.calculatePrizeDistribution(activeTournament.id);
         setPrizeDistribution(prizes);
 
-        // Update time remaining
         const remaining = LeaderboardManager.getTournamentTimeRemaining(activeTournament.id);
         setTimeRemaining(formatTimeRemaining(remaining));
       } else {
@@ -57,17 +52,18 @@ export function Leaderboard({ difficulty, refreshTrigger, className }: Leaderboa
     };
 
     loadData();
+  }, [difficulty, publicKey, refreshTrigger]);
 
-    // Update time remaining every second
+  // Update tournament countdown every second
+  useEffect(() => {
+    if (!tournament) return;
     const interval = setInterval(() => {
-      if (tournament) {
-        const remaining = LeaderboardManager.getTournamentTimeRemaining(tournament.id);
-        setTimeRemaining(formatTimeRemaining(remaining));
-      }
+      const remaining = LeaderboardManager.getTournamentTimeRemaining(tournament.id);
+      setTimeRemaining(formatTimeRemaining(remaining));
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [difficulty, publicKey, refreshTrigger]);
+  }, [tournament]);
 
   if (loading) {
     return (
@@ -189,5 +185,3 @@ export function Leaderboard({ difficulty, refreshTrigger, className }: Leaderboa
     </Card>
   );
 }
-
-export default Leaderboard;
