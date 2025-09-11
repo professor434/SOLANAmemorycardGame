@@ -21,7 +21,6 @@ export default function Leaderboard({ difficulty, refreshTrigger, className }: L
   const [tournament, setTournament] = useState<Tournament | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
-  const [activeTab, setActiveTab] = useState<string>('regular');
   const [prizeDistribution, setPrizeDistribution] = useState<{ rank: number; percentage: number; amount: number }[]>([]);
 
   // Load leaderboard and tournament data whenever inputs change
@@ -51,6 +50,7 @@ export default function Leaderboard({ difficulty, refreshTrigger, className }: L
       setLoading(false);
     };
 
+    setLoading(true);
     loadData();
   }, [difficulty, publicKey, refreshTrigger]);
 
@@ -87,7 +87,7 @@ export default function Leaderboard({ difficulty, refreshTrigger, className }: L
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <Tabs defaultValue="regular" onValueChange={setActiveTab}>
+        <Tabs defaultValue="regular">
           <TabsList className="grid grid-cols-2 mb-4">
             <TabsTrigger value="regular">All Time</TabsTrigger>
             <TabsTrigger value="tournament" disabled={!tournament}>
