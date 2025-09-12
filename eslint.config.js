@@ -1,53 +1,23 @@
 import js from '@eslint/js';
-import { FlatCompat } from '@eslint/eslintrc';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-  recommendedConfig: js.configs.recommended,
-});
+import tseslint from 'typescript-eslint';
+import reactHooks from 'eslint-plugin-react-hooks';
 
 export default [
+  {
+    ignores: ['dist/**', 'node_modules/**']
+  },
   js.configs.recommended,
-  ...compat.config({
-    extends: [
-      'eslint:recommended',
-      'plugin:react/recommended',
-      'plugin:react/jsx-runtime',
-      'plugin:react-hooks/recommended',
-    ],
-    parserOptions: {
-      ecmaVersion: 'latest',
-      sourceType: 'module',
-      ecmaFeatures: {
-        jsx: true
-      }
-    },
-    settings: {
-      react: {
-        version: 'detect'
-      }
-    },
-    env: {
-      browser: true,
-      es2020: true,
-      node: true
+  ...tseslint.configs.recommended,
+  {
+    files: ['**/*.{ts,tsx,js,jsx}'],
+    plugins: {
+      'react-hooks': reactHooks
     },
     rules: {
-      'react/prop-types': 'off',
+      ...reactHooks.configs.recommended.rules,
       'no-unused-vars': 'warn',
-      'react/jsx-key': 'warn'
+      '@typescript-eslint/no-unused-vars': 'off',
+      '@typescript-eslint/no-explicit-any': 'off'
     }
-  }),
-  {
-    ignores: [
-      'dist/**',
-      'node_modules/**',
-      '.eslintrc.cjs'
-    ]
   }
 ];

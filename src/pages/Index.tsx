@@ -12,7 +12,7 @@ import { Spinner } from '@/components/ui/spinner';
 import WalletButton from '@/components/WalletButton';
 import Leaderboard from '@/components/Leaderboard';
 import { LeaderboardManager } from '@/lib/leaderboard';
-import { TournamentManager, initializeTournaments } from '@/lib/tournament';
+import { TournamentManager } from '@/lib/tournament';
 import { formatTime, shuffleArray } from '@/lib/utils';
 
 // Define card types
@@ -52,6 +52,7 @@ export default function MemoryGame() {
   const [gameStartTime, setGameStartTime] = useState<number | null>(null);
   const [gameCompleteTime, setGameCompleteTime] = useState<number | null>(null);
   const [currentTime, setCurrentTime] = useState<number>(0);
+  const [finalScore, setFinalScore] = useState<number>(0);
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
   const [cardSet, setCardSet] = useState<'set1' | 'set2'>('set1');
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -68,7 +69,7 @@ export default function MemoryGame() {
   // Initialize game on component mount
   useEffect(() => {
     // Initialize tournaments system
-    initializeTournaments();
+    TournamentManager.initializeTournaments();
     loadActiveTournaments();
     
     return () => {
@@ -255,42 +256,46 @@ export default function MemoryGame() {
     setGameResultDialogOpen(true);
     
     // Save score to leaderboard if game was won
-    if (won && connected && publicKey) {
-      const score = calculateScore();
-      
-      try {
-        // Add score to leaderboard
-        LeaderboardManager.addScore(
-          publicKey.toString(),
-          score,
-          difficulty,
-          moves,
-          currentTime,
-          isTournamentMode ? selectedTournament || undefined : undefined
-        );
+    if (won) {
+      const score = calculateScore(currentTime, moves);
+      setFinalScore(score);
 
-        // Refresh leaderboard
-        setLeaderboardRefreshTrigger(prev => prev + 1);
+      if (connected && publicKey) {
+        try {
+          // Add score to leaderboard
+          LeaderboardManager.addScore(
+            publicKey.toString(),
+            score,
+            difficulty,
+            moves,
+            currentTime,
+            isTournamentMode ? selectedTournament || undefined : undefined
+          );
 
-        toast.success('Your score has been recorded!');
-      } catch (error) {
-        console.error('Error saving score:', error);
-        toast.error('Failed to save your score');
+          // Refresh leaderboard
+          setLeaderboardRefreshTrigger(prev => prev + 1);
+
+          toast.success('Your score has been recorded!');
+        } catch (error) {
+          console.error('Error saving score:', error);
+          toast.error('Failed to save your score');
+        }
+      } else {
+        toast.info('Connect your wallet to save your score to the leaderboard!');
       }
-    } else if (won) {
-      toast.info('Connect your wallet to save your score to the leaderboard!');
+    } else {
+      // Compute score even if game lost
+      setFinalScore(calculateScore(currentTime, moves));
     }
   };
 
   // Calculate score based on moves and time
-  const calculateScore = () => {
-    if (gameCompleteTime === null) return 0;
-    
+  const calculateScore = (time: number, moveCount: number) => {
     const config = DIFFICULTY_SETTINGS[difficulty];
     const baseScore = config.cardPairs * 100;
-    const timeBonus = Math.max(0, config.timeLimit - gameCompleteTime) * 10;
-    const moveBonus = Math.max(0, config.cardPairs * 3 - moves) * 50;
-    
+    const timeBonus = Math.max(0, config.timeLimit - time) * 10;
+    const moveBonus = Math.max(0, config.cardPairs * 3 - moveCount) * 50;
+
     return baseScore + timeBonus + moveBonus;
   };
 
@@ -310,10 +315,7 @@ export default function MemoryGame() {
     return (
       <div
         key={card.id}
-
-
-        className="perspective-500 aspect-square cursor-pointer"
-
+        className="perspective-500 aspect-square w-32 sm:w-40 cursor-pointer"
         onClick={() => handleCardClick(index)}
       >
         <div
@@ -355,13 +357,13 @@ export default function MemoryGame() {
   const getGridColumns = () => {
     switch (difficulty) {
       case 'easy':
-        return 'grid-cols-3 sm:grid-cols-4';
+        return 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4';
       case 'medium':
         return 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4';
       case 'hard':
-        return 'grid-cols-3 sm:grid-cols-4 lg:grid-cols-6';
+        return 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6';
       default:
-        return 'grid-cols-4';
+        return 'grid-cols-2';
     }
   };
 
@@ -540,7 +542,7 @@ export default function MemoryGame() {
           {/* Game Board */}
           <div className="bg-card rounded-lg p-4 border-2">
             {cards.length > 0 ? (
-              <div className={`grid ${getGridColumns()} gap-2 sm:gap-4`}>
+              <div className={`grid ${getGridColumns()} gap-2 sm:gap-4 place-items-center`}>
                 {cards.map((card, index) => renderCard(card, index))}
               </div>
             ) : (
@@ -574,10 +576,13 @@ export default function MemoryGame() {
         
         {/* Leaderboard Section */}
         <div className="space-y-6">
-          <Leaderboard refreshTrigger={leaderboardRefreshTrigger} />
+          <Leaderboard
+            difficulty={difficulty}
+            refreshTrigger={leaderboardRefreshTrigger}
+          />
         </div>
       </div>
-      
+
       {/* Game Result Dialog */}
       <Dialog open={gameResultDialogOpen} onOpenChange={setGameResultDialogOpen}>
         <DialogContent>
@@ -607,7 +612,7 @@ export default function MemoryGame() {
                 <div className="col-span-2 bg-muted p-3 rounded text-center">
                   <div className="text-sm text-muted-foreground">Score</div>
                   <div className="text-3xl font-bold text-primary">
-                    {calculateScore()}
+                    {finalScore}
                   </div>
                 </div>
               </div>
