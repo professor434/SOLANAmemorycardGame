@@ -261,24 +261,25 @@ export default function MemoryGame() {
     }
   };
 
-  // Render card
+  // -------- FLIP FIX --------
+  // Χρησιμοποιούμε Tailwind arbitrary CSS για πραγματικό 3D flip.
   const renderCard = (card: CardType, index: number) => {
     return (
       <div
         key={card.id}
-        className="perspective-500 aspect-square w-32 sm:w-40 cursor-pointer"
+        className="[perspective:1000px] aspect-square w-32 sm:w-40 cursor-pointer"
         onClick={() => handleCardClick(index)}
       >
+        {/* Flipper */}
         <div
-          className={`relative w-full h-full transform-style-3d transition-transform duration-500 ${
-            card.isFlipped ? 'rotate-y-180' : ''
-          }`}
+          className="relative w-full h-full transition-transform duration-500 [transform-style:preserve-3d]"
+          style={{ transform: card.isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)' }}
         >
           {/* Card Back */}
           <div
-            className={`absolute w-full h-full backface-hidden rounded-md bg-gradient-to-br from-violet-500 to-indigo-800 border-2 ${
-              card.isMatched ? 'border-green-500' : 'border-violet-400'
-            } shadow-lg flex items-center justify-center`}
+            className={`absolute inset-0 rounded-md bg-gradient-to-br from-violet-500 to-indigo-800 border-2
+              ${card.isMatched ? 'border-green-500' : 'border-violet-400'}
+              shadow-lg flex items-center justify-center [backface-visibility:hidden]`}
           >
             <img
               src="/assets/images/cards/card-back.png"
@@ -290,9 +291,11 @@ export default function MemoryGame() {
 
           {/* Card Front */}
           <div
-            className={`absolute w-full h-full backface-hidden rotate-y-180 rounded-md bg-white border-2 ${
-              card.isMatched ? 'border-green-500' : 'border-gray-200'
-            } shadow-lg flex items-center justify-center overflow-hidden`}
+            className={`absolute inset-0 rounded-md bg-white border-2
+              ${card.isMatched ? 'border-green-500' : 'border-gray-200'}
+              shadow-lg flex items-center justify-center overflow-hidden
+              [backface-visibility:hidden]`}
+            style={{ transform: 'rotateY(180deg)' }}
           >
             <img
               src={card.imageUrl}
