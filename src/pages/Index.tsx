@@ -16,33 +16,35 @@ import { TournamentManager } from '@/lib/tournament';
 import { formatTime, shuffleArray } from '@/lib/utils';
 
 // Define card types
-interface Card {
+interface CardType {
   id: number;
   imageUrl: string;
   isFlipped: boolean;
   isMatched: boolean;
 }
 
-// Define game difficulty settings
+// Define game difficulty settings (κρατάω τις τιμές σου όπως είναι)
 const DIFFICULTY_SETTINGS = {
   easy: { cardPairs: 6, timeLimit: 120 },      // 12 cards
   medium: { cardPairs: 8, timeLimit: 180 },    // 16 cards
   hard: { cardPairs: 12, timeLimit: 240 },     // 24 cards
 };
 
-// Define card image sets
+// ---- FIX 1: σωστά paths & 12 εικόνες ανά set ----
+// (παλιά ήταν 8 και με 'public/...': αυτό έσπαγε τα src)
+// :contentReference[oaicite:1]{index=1}
 const CARD_SETS = {
-  set1: Array.from({ length: 8 }, (_, i) => `public/assets/images/cards/set1_${i + 1}.png`),
-  set2: Array.from({ length: 8 }, (_, i) => `public/assets/images/cards/set2_${i + 1}.png`),
+  set1: Array.from({ length: 12 }, (_, i) => `/assets/images/cards/set1_${i + 1}.png`),
+  set2: Array.from({ length: 12 }, (_, i) => `/assets/images/cards/set2_${i + 1}.png`),
 };
 
 export default function MemoryGame() {
   const { connection } = useConnection();
   const wallet = useWallet();
   const { publicKey, connected } = wallet;
-  
+
   // Game state
-  const [cards, setCards] = useState<Card[]>([]);
+  const [cards, setCards] = useState<CardType[]>([]);
   const [firstCard, setFirstCard] = useState<number | null>(null);
   const [secondCard, setSecondCard] = useState<number | null>(null);
   const [moves, setMoves] = useState<number>(0);
@@ -68,10 +70,9 @@ export default function MemoryGame() {
 
   // Initialize game on component mount
   useEffect(() => {
-    // Initialize tournaments system
     TournamentManager.initializeTournaments();
     loadActiveTournaments();
-    
+
     return () => {
       if (timer.current) clearInterval(timer.current);
       if (flipTimeout.current) clearTimeout(flipTimeout.current);
@@ -82,13 +83,9 @@ export default function MemoryGame() {
   const loadActiveTournaments = () => {
     const tournaments = TournamentManager.getActiveTournaments();
     setActiveTournaments(tournaments);
-    
-    // If there's an active tournament and the user is in tournament mode,
-    // set the first tournament as selected
+
     if (tournaments.length > 0 && isTournamentMode && !selectedTournament) {
       setSelectedTournament(tournaments[0].id);
-      
-      // Set difficulty to match the tournament
       setDifficulty(tournaments[0].difficulty as 'easy' | 'medium' | 'hard');
     }
   };
@@ -111,43 +108,30 @@ export default function MemoryGame() {
       if (!entered) {
         setIsLoading(false);
         return;
-
       }
     }
 
-    // Get configuration based on difficulty
     const config = DIFFICULTY_SETTINGS[difficulty];
     const cardImages = CARD_SETS[cardSet];
-    
-    // Create pairs of cards based on difficulty
+
     const cardPairs = config.cardPairs;
-    
-    // Ensure we have enough images for the selected difficulty
-    const selectedImages = cardImages.slice(0, cardPairs);
-    
+
+    // ---- FIX 2: ασφαλής επιλογή εικόνων (wrap) ----
+    // παλιά: slice(0, cardPairs) → αν είχαμε λιγότερες, έμεναν κενά src
+    // :contentReference[oaicite:2]{index=2}
+    const selectedImages = Array.from({ length: cardPairs }, (_, i) => cardImages[i % cardImages.length]);
+
     // Create pairs
-    let cardData: Card[] = [];
+    let cardData: CardType[] = [];
     selectedImages.forEach((image, index) => {
-      // Create two cards with the same image
-      const card1 = {
-        id: index * 2,
-        imageUrl: image,
-        isFlipped: false,
-        isMatched: false,
-      };
-      const card2 = {
-        id: index * 2 + 1,
-        imageUrl: image,
-        isFlipped: false,
-        isMatched: false,
-      };
-      
+      const card1: CardType = { id: index * 2, imageUrl: image, isFlipped: false, isMatched: false };
+      const card2: CardType = { id: index * 2 + 1, imageUrl: image, isFlipped: false, isMatched: false };
       cardData.push(card1, card2);
     });
-    
+
     // Shuffle cards
     cardData = shuffleArray(cardData);
-    
+
     // Reset game state
     setCards(cardData);
     setFirstCard(null);
@@ -159,74 +143,55 @@ export default function MemoryGame() {
     setGameStartTime(Date.now());
     setGameCompleteTime(null);
     setCurrentTime(0);
-    
+
     // Start timer
     timer.current = setInterval(() => {
       setCurrentTime(prev => {
         const newTime = prev + 1;
-        
-        // Check if time limit exceeded
         if (newTime >= config.timeLimit) {
           if (timer.current) clearInterval(timer.current);
           setGameOver(true);
           return prev;
         }
-        
         return newTime;
       });
     }, 1000);
-    
+
     setIsLoading(false);
   };
 
   // Handle card click
   const handleCardClick = (index: number) => {
-    // Ignore clicks if game is over or card is already flipped or matched
-    if (
-      !gameActive ||
-      gameOver ||
-      cards[index].isFlipped ||
-      cards[index].isMatched ||
-      secondCard !== null  // Prevent clicking when two cards are already flipped
-    ) {
+    if (!gameActive || gameOver || cards[index].isFlipped || cards[index].isMatched || secondCard !== null) {
       return;
     }
-    
-    // Flip the clicked card
+
     const updatedCards = [...cards];
     updatedCards[index] = { ...updatedCards[index], isFlipped: true };
     setCards(updatedCards);
-    
-    // Handle card selection logic
+
     if (firstCard === null) {
-      // First card selected
       setFirstCard(index);
     } else {
-      // Second card selected
       setSecondCard(index);
       setMoves(moves + 1);
-      
-      // Check for a match
+
       if (cards[firstCard].imageUrl === cards[index].imageUrl) {
-        // Match found
         updatedCards[firstCard] = { ...updatedCards[firstCard], isMatched: true };
         updatedCards[index] = { ...updatedCards[index], isMatched: true };
-        
-        // Reset selected cards after a short delay
+
         flipTimeout.current = setTimeout(() => {
           setFirstCard(null);
           setSecondCard(null);
-          
-          // Check if all cards are matched (game won)
+
           const allMatched = updatedCards.every(card => card.isMatched);
           if (allMatched) {
             endGame(true);
           }
         }, 500);
-        
+
         setCards(updatedCards);
       } else {
-        // No match, flip cards back after a delay
         flipTimeout.current = setTimeout(() => {
           updatedCards[firstCard] = { ...updatedCards[firstCard], isFlipped: false };
           updatedCards[index] = { ...updatedCards[index], isFlipped: false };
@@ -240,29 +205,24 @@ export default function MemoryGame() {
 
   // End the game
   const endGame = (won: boolean) => {
-    // Stop the timer
     if (timer.current) {
       clearInterval(timer.current);
       timer.current = null;
     }
-    
-    // Update game state
+
     setGameActive(false);
     setGameWon(won);
     setGameOver(true);
     setGameCompleteTime(currentTime);
-    
-    // Show result dialog
+
     setGameResultDialogOpen(true);
-    
-    // Save score to leaderboard if game was won
+
     if (won) {
       const score = calculateScore(currentTime, moves);
       setFinalScore(score);
 
       if (connected && publicKey) {
         try {
-          // Add score to leaderboard
           LeaderboardManager.addScore(
             publicKey.toString(),
             score,
@@ -272,9 +232,7 @@ export default function MemoryGame() {
             isTournamentMode ? selectedTournament || undefined : undefined
           );
 
-          // Refresh leaderboard
           setLeaderboardRefreshTrigger(prev => prev + 1);
-
           toast.success('Your score has been recorded!');
         } catch (error) {
           console.error('Error saving score:', error);
@@ -284,34 +242,29 @@ export default function MemoryGame() {
         toast.info('Connect your wallet to save your score to the leaderboard!');
       }
     } else {
-      // Compute score even if game lost
       setFinalScore(calculateScore(currentTime, moves));
     }
   };
 
-  // Calculate score based on moves and time
   const calculateScore = (time: number, moveCount: number) => {
     const config = DIFFICULTY_SETTINGS[difficulty];
     const baseScore = config.cardPairs * 100;
     const timeBonus = Math.max(0, config.timeLimit - time) * 10;
     const moveBonus = Math.max(0, config.cardPairs * 3 - moveCount) * 50;
-
     return baseScore + timeBonus + moveBonus;
   };
 
-  // Toggle tournament mode
   const toggleTournamentMode = (enabled: boolean) => {
     setIsTournamentMode(enabled);
-    
     if (enabled) {
       loadActiveTournaments();
     } else {
       setSelectedTournament(null);
     }
   };
-  
+
   // Render card
-  const renderCard = (card: Card, index: number) => {
+  const renderCard = (card: CardType, index: number) => {
     return (
       <div
         key={card.id}
@@ -346,6 +299,8 @@ export default function MemoryGame() {
               src={card.imageUrl}
               alt="Card"
               className="w-full h-full object-contain p-1 sm:p-2"
+              // ---- FIX 3: fallback ώστε να μη δεις ποτέ παύλα/κενό ----
+              onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/assets/images/cards/card-back.png'; }}
             />
           </div>
         </div>
@@ -353,7 +308,6 @@ export default function MemoryGame() {
     );
   };
 
-  // Determine game grid columns based on difficulty
   const getGridColumns = () => {
     switch (difficulty) {
       case 'easy':
@@ -425,7 +379,7 @@ export default function MemoryGame() {
         </h1>
         <p className="text-muted-foreground">Match pairs of cards to win SOL prizes!</p>
       </div>
-      
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Game Section */}
         <div className="lg:col-span-2 space-y-6">
@@ -457,7 +411,6 @@ export default function MemoryGame() {
                             value={selectedTournament || ''}
                             onValueChange={(value) => {
                               setSelectedTournament(value);
-                              // Set difficulty to match tournament
                               const tournament = activeTournaments.find((t) => t.id === value);
                               if (tournament) {
                                 setDifficulty(tournament.difficulty as 'easy' | 'medium' | 'hard');
@@ -559,7 +512,7 @@ export default function MemoryGame() {
               </div>
             )}
           </div>
-          
+
           {/* Game Rules */}
           <Card>
             <CardContent className="pt-6">
@@ -573,7 +526,7 @@ export default function MemoryGame() {
             </CardContent>
           </Card>
         </div>
-        
+
         {/* Leaderboard Section */}
         <div className="space-y-6">
           <Leaderboard
@@ -591,24 +544,24 @@ export default function MemoryGame() {
               {gameWon ? 'Congratulations! 🎉' : 'Game Over'}
             </DialogTitle>
           </DialogHeader>
-          
+
           {gameWon ? (
             <div className="space-y-4">
               <p>You matched all the cards!</p>
-              
+
               <div className="grid grid-cols-2 gap-4 py-4">
                 <div className="bg-muted p-3 rounded text-center">
                   <div className="text-sm text-muted-foreground">Moves</div>
                   <div className="text-2xl font-bold">{moves}</div>
                 </div>
-                
+
                 <div className="bg-muted p-3 rounded text-center">
                   <div className="text-sm text-muted-foreground">Time</div>
                   <div className="text-2xl font-bold font-mono">
                     {formatTime(gameCompleteTime || 0)}
                   </div>
                 </div>
-                
+
                 <div className="col-span-2 bg-muted p-3 rounded text-center">
                   <div className="text-sm text-muted-foreground">Score</div>
                   <div className="text-3xl font-bold text-primary">
@@ -616,7 +569,7 @@ export default function MemoryGame() {
                   </div>
                 </div>
               </div>
-              
+
               {isTournamentMode && connected ? (
                 <div className="bg-success/20 text-success p-2 rounded text-center text-sm">
                   Your score has been submitted to the tournament!
@@ -626,7 +579,7 @@ export default function MemoryGame() {
                   Connect your wallet to save your score on the leaderboard!
                 </div>
               ) : null}
-              
+
               <div className="flex space-x-2 pt-2">
                 <Button 
                   variant="outline" 
@@ -649,7 +602,7 @@ export default function MemoryGame() {
           ) : (
             <div className="space-y-4">
               <p>You ran out of time!</p>
-              
+
               <div className="flex space-x-2 pt-2">
                 <Button 
                   variant="outline" 
