@@ -32,8 +32,8 @@ const DIFFICULTY_SETTINGS = {
 
 // Define card image sets
 const CARD_SETS = {
-  set1: Array.from({ length: 8 }, (_, i) => `/assets/images/cards/set1_${i + 1}.png`),
-  set2: Array.from({ length: 8 }, (_, i) => `/assets/images/cards/set2_${i + 1}.png`),
+  set1: Array.from({ length: 8 }, (_, i) => `public/assets/images/cards/set1_${i + 1}.png`),
+  set2: Array.from({ length: 8 }, (_, i) => `public/assets/images/cards/set2_${i + 1}.png`),
 };
 
 export default function MemoryGame() {
