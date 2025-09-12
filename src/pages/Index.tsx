@@ -30,9 +30,7 @@ const DIFFICULTY_SETTINGS = {
   hard: { cardPairs: 12, timeLimit: 240 },     // 24 cards
 };
 
-// ---- FIX 1: σωστά paths & 12 εικόνες ανά set ----
-// (παλιά ήταν 8 και με 'public/...': αυτό έσπαγε τα src)
-// :contentReference[oaicite:1]{index=1}
+// σωστά paths & 12 εικόνες ανά set
 const CARD_SETS = {
   set1: Array.from({ length: 12 }, (_, i) => `/assets/images/cards/set1_${i + 1}.png`),
   set2: Array.from({ length: 12 }, (_, i) => `/assets/images/cards/set2_${i + 1}.png`),
@@ -113,13 +111,13 @@ export default function MemoryGame() {
 
     const config = DIFFICULTY_SETTINGS[difficulty];
     const cardImages = CARD_SETS[cardSet];
-
     const cardPairs = config.cardPairs;
 
-    // ---- FIX 2: ασφαλής επιλογή εικόνων (wrap) ----
-    // παλιά: slice(0, cardPairs) → αν είχαμε λιγότερες, έμεναν κενά src
-    // :contentReference[oaicite:2]{index=2}
-    const selectedImages = Array.from({ length: cardPairs }, (_, i) => cardImages[i % cardImages.length]);
+    // ασφαλής επιλογή εικόνων (wrap)
+    const selectedImages = Array.from(
+      { length: cardPairs },
+      (_, i) => cardImages[i % cardImages.length]
+    );
 
     // Create pairs
     let cardData: CardType[] = [];
@@ -285,7 +283,8 @@ export default function MemoryGame() {
             <img
               src="/assets/images/cards/card-back.png"
               alt="Card Back"
-              className="w-3/4 h-3/4 object-contain opacity-80"
+              className="object-contain opacity-80"
+              style={{ width: 100, height: 100 }}
             />
           </div>
 
@@ -298,8 +297,8 @@ export default function MemoryGame() {
             <img
               src={card.imageUrl}
               alt="Card"
-              className="w-full h-full object-contain p-1 sm:p-2"
-              // ---- FIX 3: fallback ώστε να μη δεις ποτέ παύλα/κενό ----
+              className="object-contain p-1 sm:p-2"
+              style={{ width: 100, height: 100 }}
               onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/assets/images/cards/card-back.png'; }}
             />
           </div>
