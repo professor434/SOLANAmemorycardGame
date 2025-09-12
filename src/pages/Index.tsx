@@ -263,52 +263,52 @@ export default function MemoryGame() {
 
   // -------- FLIP FIX --------
   // Χρησιμοποιούμε Tailwind arbitrary CSS για πραγματικό 3D flip.
-  const renderCard = (card: CardType, index: number) => {
-    return (
+ const renderCard = (card: CardType, index: number) => {
+  return (
+    <div
+      key={card.id}
+      className="relative w-24 h-24 sm:w-32 sm:h-32 md:w-36 md:h-36 cursor-pointer perspective"
+      onClick={() => handleCardClick(index)}
+    >
       <div
-        key={card.id}
-        className="[perspective:1000px] aspect-square w-32 sm:w-40 cursor-pointer"
-        onClick={() => handleCardClick(index)}
+        className={`relative w-full h-full transition-transform duration-500 transform-style-preserve-3d ${
+          card.isFlipped ? 'rotate-y-180' : ''
+        }`}
       >
-        {/* Flipper */}
+        {/* Card Back */}
         <div
-          className="relative w-full h-full transition-transform duration-500 [transform-style:preserve-3d]"
-          style={{ transform: card.isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)' }}
+          className={`absolute inset-0 backface-hidden rounded-md border-2 flex items-center justify-center shadow-lg 
+          ${card.isMatched ? 'border-green-500' : 'border-violet-400'} 
+          bg-gradient-to-br from-violet-500 to-indigo-800`}
         >
-          {/* Card Back */}
-          <div
-            className={`absolute inset-0 rounded-md bg-gradient-to-br from-violet-500 to-indigo-800 border-2
-              ${card.isMatched ? 'border-green-500' : 'border-violet-400'}
-              shadow-lg flex items-center justify-center [backface-visibility:hidden]`}
-          >
-            <img
-              src="/assets/images/cards/card-back.png"
-              alt="Card Back"
-              className="object-contain opacity-80"
-              style={{ width: 100, height: 100 }}
-            />
-          </div>
+          <img
+            src="/assets/images/cards/card-back.png"
+            alt="Card Back"
+            className="object-contain w-16 h-16 sm:w-20 sm:h-20"
+          />
+        </div>
 
-          {/* Card Front */}
-          <div
-            className={`absolute inset-0 rounded-md bg-white border-2
-              ${card.isMatched ? 'border-green-500' : 'border-gray-200'}
-              shadow-lg flex items-center justify-center overflow-hidden
-              [backface-visibility:hidden]`}
-            style={{ transform: 'rotateY(180deg)' }}
-          >
-            <img
-              src={card.imageUrl}
-              alt="Card"
-              className="object-contain p-1 sm:p-2"
-              style={{ width: 100, height: 100 }}
-              onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/assets/images/cards/card-back.png'; }}
-            />
-          </div>
+        {/* Card Front */}
+        <div
+          className={`absolute inset-0 backface-hidden rotate-y-180 rounded-md border-2 flex items-center justify-center shadow-lg 
+          ${card.isMatched ? 'border-green-500' : 'border-gray-200'} 
+          bg-white overflow-hidden`}
+        >
+          <img
+            src={card.imageUrl}
+            alt="Card"
+            className="object-contain w-16 h-16 sm:w-20 sm:h-20"
+            onError={(e) => {
+              (e.currentTarget as HTMLImageElement).src =
+                '/assets/images/cards/card-back.png';
+            }}
+          />
         </div>
       </div>
-    );
-  };
+    </div>
+  );
+};
+
 
   const getGridColumns = () => {
     switch (difficulty) {
