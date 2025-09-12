@@ -310,10 +310,7 @@ export default function MemoryGame() {
     return (
       <div
         key={card.id}
-
-
-        className="perspective-500 aspect-square cursor-pointer"
-
+        className="perspective-500 aspect-square w-24 sm:w-32 cursor-pointer"
         onClick={() => handleCardClick(index)}
       >
         <div
@@ -355,13 +352,13 @@ export default function MemoryGame() {
   const getGridColumns = () => {
     switch (difficulty) {
       case 'easy':
-        return 'grid-cols-3 sm:grid-cols-4';
+        return 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4';
       case 'medium':
         return 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4';
       case 'hard':
-        return 'grid-cols-3 sm:grid-cols-4 lg:grid-cols-6';
+        return 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6';
       default:
-        return 'grid-cols-4';
+        return 'grid-cols-2';
     }
   };
 
@@ -540,7 +537,7 @@ export default function MemoryGame() {
           {/* Game Board */}
           <div className="bg-card rounded-lg p-4 border-2">
             {cards.length > 0 ? (
-              <div className={`grid ${getGridColumns()} gap-2 sm:gap-4`}>
+              <div className={`grid ${getGridColumns()} gap-2 sm:gap-4 place-items-center`}>
                 {cards.map((card, index) => renderCard(card, index))}
               </div>
             ) : (
