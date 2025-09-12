@@ -30,11 +30,12 @@ const DIFFICULTY_SETTINGS = {
   hard: { cardPairs: 12, timeLimit: 240 },     // 24 cards
 };
 
-// Define card image sets
+// Define card image sets (12 εικόνες για κάθε σετ)
 const CARD_SETS = {
-  set1: Array.from({ length: 8 }, (_, i) => `/assets/images/cards/set1_${i + 1}.png`),
-  set2: Array.from({ length: 8 }, (_, i) => `/assets/images/cards/set2_${i + 1}.png`),
+  set1: Array.from({ length: 12 }, (_, i) => `/assets/images/cards/set1_${i + 1}.png`),
+  set2: Array.from({ length: 12 }, (_, i) => `/assets/images/cards/set2_${i + 1}.png`)
 };
+
 
 export default function MemoryGame() {
   const { connection } = useConnection();
