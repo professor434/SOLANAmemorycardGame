@@ -1,6 +1,6 @@
 // src/App.tsx
 import React from 'react';
-import './styles/index.css'; // <-- FIXED path
+import './index.css'; // <-- FIXED path
 import { ConnectionProvider } from '@solana/wallet-adapter-react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { TooltipProvider } from '@/components/ui/tooltip';
