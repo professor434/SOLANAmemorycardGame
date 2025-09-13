@@ -16,7 +16,7 @@ import { LeaderboardManager } from '@/lib/leaderboard';
 import { TournamentManager } from '@/lib/tournament';
 import { formatTime, shuffleArray } from '@/lib/utils';
 
-// NetworkBadge - μικρό component που δείχνει App network & RPC
+// ✅ NetworkBadge component
 const NetworkBadge: React.FC = () => {
   const network = process.env.NEXT_PUBLIC_SOLANA_NETWORK || 'mainnet-beta';
   const endpoint = process.env.NEXT_PUBLIC_SOLANA_RPC || '';
@@ -29,7 +29,7 @@ const NetworkBadge: React.FC = () => {
   );
 };
 
-// Define card types
+// ✅ Types
 interface CardType {
   id: number;
   imageUrl: string;
@@ -37,24 +37,32 @@ interface CardType {
   isMatched: boolean;
 }
 
-// Difficulty settings
+// ✅ Difficulty settings
 const DIFFICULTY_SETTINGS = {
   easy: { cardPairs: 6, timeLimit: 120 },
   medium: { cardPairs: 8, timeLimit: 180 },
   hard: { cardPairs: 12, timeLimit: 240 },
 };
 
+// ✅ Asset URLs (import.meta.url)
 const CARD_SETS = {
-  set1: Array.from({ length: 12 }, (_, i) => `/assets/images/cards/set1_${i + 1}.png`),
-  set2: Array.from({ length: 12 }, (_, i) => `/assets/images/cards/set2_${i + 1}.png`),
+  set1: Array.from({ length: 12 }, (_, i) =>
+    new URL(`../assets/images/cards/set1_${i + 1}.png`, import.meta.url).href
+  ),
+  set2: Array.from({ length: 12 }, (_, i) =>
+    new URL(`../assets/images/cards/set2_${i + 1}.png`, import.meta.url).href
+  ),
 };
+const CARD_BACK_URL = new URL('../assets/images/cards/card-back.png', import.meta.url).href;
+const BACKGROUND_URL = new URL('../assets/images/background.png', import.meta.url).href;
+const LOGO_URL = new URL('../assets/images/logo.png', import.meta.url).href;
 
 export default function MemoryGame() {
   const { connection } = useConnection();
   const wallet = useWallet();
   const { publicKey, connected } = wallet;
 
-  // Game state
+  // ✅ Game state
   const [cards, setCards] = useState<CardType[]>([]);
   const [firstCard, setFirstCard] = useState<number | null>(null);
   const [secondCard, setSecondCard] = useState<number | null>(null);
@@ -73,7 +81,7 @@ export default function MemoryGame() {
   const [gameResultDialogOpen, setGameResultDialogOpen] = useState<boolean>(false);
   const [leaderboardRefreshTrigger, setLeaderboardRefreshTrigger] = useState<number>(0);
 
-  // Refs
+  // ✅ Refs
   const timer = useRef<NodeJS.Timeout | null>(null);
   const flipTimeout = useRef<NodeJS.Timeout | null>(null);
 
@@ -104,7 +112,6 @@ export default function MemoryGame() {
     setIsLoading(true);
 
     if (isTournamentMode && selectedTournament) {
-      // call the TournamentManager.enterTournament which will handle network confirmation & payment
       const entered = await TournamentManager.enterTournament(connection, wallet, selectedTournament);
       if (!entered) {
         setIsLoading(false);
@@ -116,10 +123,7 @@ export default function MemoryGame() {
     const cardImages = CARD_SETS[cardSet];
     const cardPairs = config.cardPairs;
 
-    const selectedImages = Array.from(
-      { length: cardPairs },
-      (_, i) => cardImages[i % cardImages.length]
-    );
+    const selectedImages = Array.from({ length: cardPairs }, (_, i) => cardImages[i % cardImages.length]);
 
     let cardData: CardType[] = [];
     selectedImages.forEach((image, index) => {
@@ -155,9 +159,7 @@ export default function MemoryGame() {
   };
 
   const handleCardClick = (index: number) => {
-    if (!gameActive || gameOver || cards[index].isFlipped || cards[index].isMatched || secondCard !== null) {
-      return;
-    }
+    if (!gameActive || gameOver || cards[index].isFlipped || cards[index].isMatched || secondCard !== null) return;
 
     const updatedCards = [...cards];
     updatedCards[index] = { ...updatedCards[index], isFlipped: true };
@@ -176,11 +178,7 @@ export default function MemoryGame() {
         flipTimeout.current = setTimeout(() => {
           setFirstCard(null);
           setSecondCard(null);
-
-          const allMatched = updatedCards.every(card => card.isMatched);
-          if (allMatched) {
-            endGame(true);
-          }
+          if (updatedCards.every(card => card.isMatched)) endGame(true);
         }, 500);
 
         setCards(updatedCards);
@@ -205,7 +203,6 @@ export default function MemoryGame() {
     setGameActive(false);
     setGameWon(won);
     setGameOver(true);
-
     setGameResultDialogOpen(true);
 
     if (won) {
@@ -222,7 +219,6 @@ export default function MemoryGame() {
             currentTime,
             isTournamentMode ? selectedTournament || undefined : undefined
           );
-
           setLeaderboardRefreshTrigger(prev => prev + 1);
           toast.success('Your score has been recorded!');
         } catch (error) {
@@ -230,7 +226,7 @@ export default function MemoryGame() {
           toast.error('Failed to save your score');
         }
       } else {
-        toast.info('Connect your wallet to save your score to the leaderboard!');
+        toast.info('Connect your wallet to save your score!');
       }
     } else {
       setFinalScore(calculateScore(currentTime, moves));
@@ -247,14 +243,11 @@ export default function MemoryGame() {
 
   const toggleTournamentMode = (enabled: boolean) => {
     setIsTournamentMode(enabled);
-    if (enabled) {
-      loadActiveTournaments();
-    } else {
-      setSelectedTournament(null);
-    }
+    if (enabled) loadActiveTournaments();
+    else setSelectedTournament(null);
   };
 
-  // Render card with fixed size and proper flip classes (uses your index.css utilities)
+  // ✅ Render card
   const renderCard = (card: CardType, index: number) => {
     const CARD_PX = 120;
     const IMG_PX = 80;
@@ -277,10 +270,10 @@ export default function MemoryGame() {
             style={{ background: 'linear-gradient(180deg,#8b5cf6,#5b21b6)' }}
           >
             <img
-              src="/assets/images/cards/card-back.png"
+              src={CARD_BACK_URL}
               alt="Card Back"
               style={{ width: IMG_PX, height: IMG_PX, objectFit: 'contain', opacity: 0.95 }}
-              onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/assets/images/cards/card-back.png'; }}
+              onError={(e) => { (e.currentTarget as HTMLImageElement).src = CARD_BACK_URL; }}
             />
           </div>
 
@@ -295,7 +288,7 @@ export default function MemoryGame() {
               src={card.imageUrl}
               alt="Card Front"
               style={{ width: IMG_PX, height: IMG_PX, objectFit: 'contain' }}
-              onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/assets/images/cards/card-back.png'; }}
+              onError={(e) => { (e.currentTarget as HTMLImageElement).src = CARD_BACK_URL; }}
             />
           </div>
         </div>
@@ -324,7 +317,6 @@ export default function MemoryGame() {
             <span className="text-sm text-muted-foreground mb-1">Moves</span>
             <span className="text-3xl font-bold">{moves}</span>
           </div>
-
           <div className="flex flex-col items-center">
             <span className="text-sm text-muted-foreground mb-1">Time</span>
             <span className="text-3xl font-bold font-mono">
@@ -332,30 +324,21 @@ export default function MemoryGame() {
             </span>
           </div>
         </div>
-
         <Separator className="my-4" />
-
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Badge
               variant={
-                difficulty === 'easy'
-                  ? 'default'
-                  : difficulty === 'medium'
-                  ? 'secondary'
-                  : 'destructive'
+                difficulty === 'easy' ? 'default' :
+                difficulty === 'medium' ? 'secondary' : 'destructive'
               }
             >
               {difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}
             </Badge>
-
             {isTournamentMode && (
-              <Badge variant="outline" className="bg-amber-900/20 text-amber-200">
-                Tournament
-              </Badge>
+              <Badge variant="outline" className="bg-amber-900/20 text-amber-200">Tournament</Badge>
             )}
           </div>
-
           <div className="ml-auto">
             <WalletButton variant="outline" size="sm" />
           </div>
@@ -365,11 +348,11 @@ export default function MemoryGame() {
   );
 
   return (
-    <div className="min-h-screen bg-cover bg-center" style={{ backgroundImage: "url('/assets/images/background.png')" }}>
+    <div className="min-h-screen bg-cover bg-center" style={{ backgroundImage: `url(${BACKGROUND_URL})` }}>
       <div className="mx-auto max-w-full py-8 px-4">
-        {/* Header with NetworkBadge */}
+        {/* Header */}
         <div className="flex items-center justify-center gap-6 mb-8">
-          <img src="/assets/images/logo.png" alt="Solana Memory Game Logo" className="h-24" />
+          <img src={LOGO_URL} alt="Solana Memory Game Logo" className="h-24" />
           <div className="text-left">
             <h1 className="text-3xl md:text-4xl font-bold mb-1">Solana Memory Game</h1>
             <p className="text-muted-foreground mb-2">Match pairs of cards to win SOL prizes!</p>
@@ -378,7 +361,7 @@ export default function MemoryGame() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Game & controls left */}
+          {/* Left: Game controls */}
           <div className="lg:col-span-2 space-y-6">
             {!gameActive && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -407,27 +390,19 @@ export default function MemoryGame() {
                               value={selectedTournament || ''}
                               onValueChange={(value) => {
                                 setSelectedTournament(value);
-                                const tournament = activeTournaments.find((t) => t.id === value);
-                                if (tournament) {
-                                  setDifficulty(tournament.difficulty as 'easy' | 'medium' | 'hard');
-                                }
+                                const t = activeTournaments.find((t) => t.id === value);
+                                if (t) setDifficulty(t.difficulty as 'easy' | 'medium' | 'hard');
                               }}
                             >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select Tournament" />
-                              </SelectTrigger>
+                              <SelectTrigger><SelectValue placeholder="Select Tournament" /></SelectTrigger>
                               <SelectContent>
-                                {activeTournaments.map((tournament) => (
-                                  <SelectItem key={tournament.id} value={tournament.id}>
-                                    {tournament.name}
-                                  </SelectItem>
+                                {activeTournaments.map((t) => (
+                                  <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
                                 ))}
                               </SelectContent>
                             </Select>
                           ) : (
-                            <div className="bg-muted p-2 rounded text-sm text-center">
-                              No active tournaments available
-                            </div>
+                            <div className="bg-muted p-2 rounded text-sm text-center">No active tournaments</div>
                           )}
                         </div>
                       ) : (
@@ -438,9 +413,7 @@ export default function MemoryGame() {
                               value={difficulty}
                               onValueChange={(value) => setDifficulty(value as 'easy' | 'medium' | 'hard')}
                             >
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
+                              <SelectTrigger><SelectValue /></SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="easy">Easy (6 pairs)</SelectItem>
                                 <SelectItem value="medium">Medium (8 pairs)</SelectItem>
@@ -452,9 +425,7 @@ export default function MemoryGame() {
                           <div className="space-y-2">
                             <label className="text-sm font-medium">Card Set</label>
                             <Select value={cardSet} onValueChange={(value) => setCardSet(value as 'set1' | 'set2')}>
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
+                              <SelectTrigger><SelectValue /></SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="set1">Solana Symbols</SelectItem>
                                 <SelectItem value="set2">Crypto Icons</SelectItem>
@@ -464,164 +435,57 @@ export default function MemoryGame() {
                         </>
                       )}
 
-                      <Button
-                        onClick={initializeGame}
-                        disabled={isTournamentMode && (!selectedTournament || !connected)}
-                        className="mt-2"
-                      >
+                      <Button onClick={initializeGame} disabled={isTournamentMode && (!selectedTournament || !connected)} className="mt-2">
                         {isLoading ? <Spinner size="sm" className="mr-2" /> : null}
                         Start Game
                       </Button>
 
                       {isTournamentMode && !connected && (
-                        <div className="text-sm text-warning text-center">
-                          Connect wallet to play tournament mode
-                        </div>
+                        <p className="text-xs text-red-400">Connect wallet to enter tournaments</p>
                       )}
                     </div>
                   </CardContent>
                 </Card>
-
-                {renderStatsCard()}
               </div>
             )}
 
-            {gameActive && <div className="mb-4">{renderStatsCard()}</div>}
-
-            {/* Game Board */}
-            <div className="bg-card rounded-lg p-4 border-2">
-              {cards.length > 0 ? (
-                <div className={`grid ${getGridColumns()} gap-4 place-items-center`}>
+            {gameActive && (
+              <>
+                {renderStatsCard()}
+                <div className={`grid ${getGridColumns()} gap-3 justify-center`}>
                   {cards.map((card, index) => renderCard(card, index))}
                 </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center h-80 text-center">
-                  <h3 className="text-xl font-semibold mb-2">Welcome to Solana Memory Game!</h3>
-                  <p className="text-muted-foreground mb-4">
-                    Select your game options and click 'Start Game' to begin.
-                  </p>
-                  <img 
-                    src="/assets/images/cards/card-back.png"
-                    alt="Memory Game"
-                    className="w-24 h-24 object-contain opacity-60"
-                  />
-                </div>
-              )}
-            </div>
-
-            {/* Game Rules */}
-            <Card>
-              <CardContent className="pt-6">
-                <h3 className="font-semibold mb-2">How to Play</h3>
-                <ul className="text-sm text-muted-foreground space-y-1 list-disc pl-4">
-                  <li>Click on cards to flip them and find matching pairs</li>
-                  <li>Each difficulty has a time limit: Easy (2 min), Medium (3 min), Hard (4 min)</li>
-                  <li>Tournament mode requires connecting a Solana wallet and paying an entry fee</li>
-                  <li>Win prizes by ranking high on tournament leaderboards</li>
-                </ul>
-              </CardContent>
-            </Card>
+              </>
+            )}
           </div>
 
-          {/* Leaderboard Section */}
-          <div className="space-y-6">
-            <Leaderboard
-              difficulty={difficulty}
-              refreshTrigger={leaderboardRefreshTrigger}
-            />
+          {/* Right: Leaderboard */}
+          <div>
+            <Leaderboard difficulty={difficulty} refreshTrigger={leaderboardRefreshTrigger} />
           </div>
         </div>
-
-        {/* Game Result Dialog */}
-        <Dialog open={gameResultDialogOpen} onOpenChange={setGameResultDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>
-                {gameWon ? 'Congratulations! 🎉' : 'Game Over'}
-              </DialogTitle>
-            </DialogHeader>
-
-            {gameWon ? (
-              <div className="space-y-4">
-                <p>You matched all the cards!</p>
-
-                <div className="grid grid-cols-2 gap-4 py-4">
-                  <div className="bg-muted p-3 rounded text-center">
-                    <div className="text-sm text-muted-foreground">Moves</div>
-                    <div className="text-2xl font-bold">{moves}</div>
-                  </div>
-
-                  <div className="bg-muted p-3 rounded text-center">
-                    <div className="text-sm text-muted-foreground">Time</div>
-                    <div className="text-2xl font-bold font-mono">
-                      {formatTime(currentTime || 0)}
-                    </div>
-                  </div>
-
-                  <div className="col-span-2 bg-muted p-3 rounded text-center">
-                    <div className="text-sm text-muted-foreground">Score</div>
-                    <div className="text-3xl font-bold text-primary">
-                      {finalScore}
-                    </div>
-                  </div>
-                </div>
-
-                {isTournamentMode && connected ? (
-                  <div className="bg-success/20 text-success p-2 rounded text-center text-sm">
-                    Your score has been submitted to the tournament!
-                  </div>
-                ) : !connected ? (
-                  <div className="bg-warning/20 text-warning p-2 rounded text-center text-sm">
-                    Connect your wallet to save your score on the leaderboard!
-                  </div>
-                ) : null}
-
-                <div className="flex space-x-2 pt-2">
-                  <Button 
-                    variant="outline" 
-                    className="flex-1"
-                    onClick={() => setGameResultDialogOpen(false)}
-                  >
-                    Close
-                  </Button>
-                  <Button 
-                    className="flex-1"
-                    onClick={() => {
-                      setGameResultDialogOpen(false);
-                      initializeGame();
-                    }}
-                  >
-                    Play Again
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <p>You ran out of time!</p>
-
-                <div className="flex space-x-2 pt-2">
-                  <Button 
-                    variant="outline" 
-                    className="flex-1"
-                    onClick={() => setGameResultDialogOpen(false)}
-                  >
-                    Close
-                  </Button>
-                  <Button 
-                    className="flex-1"
-                    onClick={() => {
-                      setGameResultDialogOpen(false);
-                      initializeGame();
-                    }}
-                  >
-                    Try Again
-                  </Button>
-                </div>
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
       </div>
+
+      {/* Game Result Dialog */}
+      <Dialog open={gameResultDialogOpen} onOpenChange={setGameResultDialogOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Game {gameWon ? 'Won' : 'Over'}</DialogTitle></DialogHeader>
+          <div className="py-4">
+            <p className="mb-2">Final Score: <span className="font-bold">{finalScore}</span></p>
+            <p className="mb-2">Moves: <span className="font-bold">{moves}</span></p>
+            <p className="mb-2">Time: <span className="font-bold">{formatTime(currentTime)}</span></p>
+            {gameWon ? (
+              <p className="text-green-400 font-medium">Congratulations! 🎉</p>
+            ) : (
+              <p className="text-red-400 font-medium">Try again!</p>
+            )}
+          </div>
+          <div className="flex gap-2 justify-end">
+            <Button variant="outline" onClick={() => { setGameResultDialogOpen(false); initializeGame(); }}>Play Again</Button>
+            <Button onClick={() => setGameResultDialogOpen(false)}>Close</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
