@@ -23,7 +23,7 @@ interface CardType {
   isMatched: boolean;
 }
 
-// Define game difficulty settings (κρατάω τις τιμές σου όπως είναι)
+// Define game difficulty settings
 const DIFFICULTY_SETTINGS = {
   easy: { cardPairs: 6, timeLimit: 120 },      // 12 cards
   medium: { cardPairs: 8, timeLimit: 180 },    // 16 cards
@@ -261,54 +261,56 @@ export default function MemoryGame() {
     }
   };
 
-  // -------- FLIP FIX --------
-  // Χρησιμοποιούμε Tailwind arbitrary CSS για πραγματικό 3D flip.
- const renderCard = (card: CardType, index: number) => {
-  return (
-    <div
-      key={card.id}
-      className="relative w-24 h-24 sm:w-32 sm:h-32 md:w-36 md:h-36 cursor-pointer perspective"
-      onClick={() => handleCardClick(index)}
-    >
-      <div
-        className={`relative w-full h-full transition-transform duration-500 transform-style-preserve-3d ${
-          card.isFlipped ? 'rotate-y-180' : ''
-        }`}
-      >
-        {/* Card Back */}
-        <div
-          className={`absolute inset-0 backface-hidden rounded-md border-2 flex items-center justify-center shadow-lg 
-          ${card.isMatched ? 'border-green-500' : 'border-violet-400'} 
-          bg-gradient-to-br from-violet-500 to-indigo-800`}
-        >
-          <img
-            src="/assets/images/cards/card-back.png"
-            alt="Card Back"
-            className="object-contain w-16 h-16 sm:w-20 sm:h-20"
-          />
-        </div>
+  // Render card (uses your index.css utility classes)
+  const renderCard = (card: CardType, index: number) => {
+    // card & image sizes — προσαρμόζεις αν θες
+    const CARD_PX = 120; // wrapper size
+    const IMG_PX = 80;   // εικόνα μέσα στην κάρτα
 
-        {/* Card Front */}
+    return (
+      <div
+        key={card.id}
+        className="cursor-pointer"
+        style={{ width: CARD_PX, height: CARD_PX }}
+        onClick={() => handleCardClick(index)}
+      >
         <div
-          className={`absolute inset-0 backface-hidden rotate-y-180 rounded-md border-2 flex items-center justify-center shadow-lg 
-          ${card.isMatched ? 'border-green-500' : 'border-gray-200'} 
-          bg-white overflow-hidden`}
+          className={`relative w-full h-full transform-style-3d transition-transform duration-500 perspective-500 ${card.isFlipped ? 'rotate-y-180' : ''}`}
+          // rotate-y-180 class θα εφαρμοστεί στο parent flipper όταν flipped
         >
-          <img
-            src={card.imageUrl}
-            alt="Card"
-            className="object-contain w-16 h-16 sm:w-20 sm:h-20"
-            onError={(e) => {
-              (e.currentTarget as HTMLImageElement).src =
-                '/assets/images/cards/card-back.png';
-            }}
-          />
+          {/* BACK */}
+          <div
+            className={`absolute inset-0 rounded-md flex items-center justify-center shadow-lg backface-hidden border-2 ${
+              card.isMatched ? 'border-green-500' : 'border-violet-400'
+            }`}
+            style={{ background: 'linear-gradient(180deg,#8b5cf6,#5b21b6)' }}
+          >
+            <img
+              src="/assets/images/cards/card-back.png"
+              alt="Card Back"
+              style={{ width: IMG_PX, height: IMG_PX, objectFit: 'contain', opacity: 0.95 }}
+              onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/assets/images/cards/card-back.png'; }}
+            />
+          </div>
+
+          {/* FRONT */}
+          <div
+            className={`absolute inset-0 rounded-md flex items-center justify-center shadow-md backface-hidden rotate-y-180 border-2 ${
+              card.isMatched ? 'border-green-500' : 'border-gray-200'
+            }`}
+            style={{ background: '#060606' }}
+          >
+            <img
+              src={card.imageUrl}
+              alt="Card Front"
+              style={{ width: IMG_PX, height: IMG_PX, objectFit: 'contain' }}
+              onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/assets/images/cards/card-back.png'; }}
+            />
+          </div>
         </div>
       </div>
-    </div>
-  );
-};
-
+    );
+  };
 
   const getGridColumns = () => {
     switch (difficulty) {
@@ -497,7 +499,7 @@ export default function MemoryGame() {
           {/* Game Board */}
           <div className="bg-card rounded-lg p-4 border-2">
             {cards.length > 0 ? (
-              <div className={`grid ${getGridColumns()} gap-2 sm:gap-4 place-items-center`}>
+              <div className={`grid ${getGridColumns()} gap-4 place-items-center`}>
                 {cards.map((card, index) => renderCard(card, index))}
               </div>
             ) : (
