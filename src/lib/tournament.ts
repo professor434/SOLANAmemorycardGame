@@ -1,3 +1,4 @@
+// src/lib/tournament.ts
 import { LeaderboardManager, Tournament } from './leaderboard';
 import { toast } from 'sonner';
 import { makePayment } from './solana';
@@ -12,9 +13,9 @@ export interface TournamentPrize {
 
 // Default prize distribution percentages (0.1% kept for treasury)
 const DEFAULT_PRIZE_DISTRIBUTION: { rank: number; percentage: number }[] = [
-  { rank: 1, percentage: 50 },    // First place: 50% of the prize pool
-  { rank: 2, percentage: 30 },    // Second place: 30% of the prize pool
-  { rank: 3, percentage: 19.9 },  // Third place: 19.9% of the prize pool
+  { rank: 1, percentage: 50 },   // First place: 50%
+  { rank: 2, percentage: 30 },   // Second place: 30%
+  { rank: 3, percentage: 19.9 }, // Third place: 19.9%
 ];
 
 export class TournamentManager {
@@ -29,7 +30,6 @@ export class TournamentManager {
     difficulty: string
   ): Tournament | null {
     try {
-      // Validate parameters
       if (entryFee < 0) {
         toast.error('Entry fee cannot be negative');
         return null;
@@ -49,7 +49,6 @@ export class TournamentManager {
         status = 'completed';
       }
 
-      // Create tournament
       const tournament = LeaderboardManager.createTournament({
         name,
         entryFee,
@@ -99,13 +98,11 @@ export class TournamentManager {
         return true;
       }
 
-      // Make payment for entry fee
       const paid = await makePayment(connection, wallet, tournament.entryFee);
       if (!paid) {
         return false;
       }
 
-      // Add player to tournament
       const success = LeaderboardManager.joinTournament(
         tournamentId,
         wallet.publicKey.toString(),
@@ -181,17 +178,14 @@ export class TournamentManager {
 
       const tournament = tournaments[tournamentIndex];
 
-      // Set status to completed
       tournament.status = 'completed';
 
-      // Get top players
       const leaderboard = LeaderboardManager.getTournamentLeaderboard(tournamentId);
-      tournament.winners = leaderboard.slice(0, 3); // Top 3 winners
+      tournament.winners = leaderboard.slice(0, 3);
 
-      // Update tournament
       tournaments[tournamentIndex] = tournament;
       localStorage.setItem(
-        (LeaderboardManager as any)['TOURNAMENTS_STORAGE_KEY'],
+        (LeaderboardManager as any).TOURNAMENTS_STORAGE_KEY,
         JSON.stringify(tournaments)
       );
 
@@ -204,41 +198,34 @@ export class TournamentManager {
 
   /**
    * Check and update tournament statuses
-   * (This should be called periodically to update tournament statuses)
    */
   static checkAndUpdateTournaments(): void {
     try {
       const tournaments = LeaderboardManager.getTournaments();
       let updated = false;
-
       const now = new Date();
 
       tournaments.forEach((tournament) => {
         const startTime = new Date(tournament.startTime);
         const endTime = new Date(tournament.endTime);
 
-        // Update upcoming to active
         if (tournament.status === 'upcoming' && now >= startTime && now < endTime) {
           tournament.status = 'active';
           updated = true;
         }
 
-        // Update active to completed
         if (tournament.status === 'active' && now >= endTime) {
           tournament.status = 'completed';
 
-          // Get winners
           const leaderboard = LeaderboardManager.getTournamentLeaderboard(tournament.id);
-          tournament.winners = leaderboard.slice(0, 3); // Top 3 winners
-
+          tournament.winners = leaderboard.slice(0, 3);
           updated = true;
         }
       });
 
-      // Save if any updates were made
       if (updated) {
         localStorage.setItem(
-          (LeaderboardManager as any)['TOURNAMENTS_STORAGE_KEY'],
+          (LeaderboardManager as any).TOURNAMENTS_STORAGE_KEY,
           JSON.stringify(tournaments)
         );
       }
@@ -253,15 +240,12 @@ export class TournamentManager {
   static getAvailableTournaments(playerWallet?: string): Tournament[] {
     try {
       const tournaments = LeaderboardManager.getTournaments();
-
-      // Filter to only show active tournaments
       const activeTournaments = tournaments.filter((t) => t.status === 'active');
 
       if (!playerWallet) {
         return activeTournaments;
       }
 
-      // Mark if player has entered each tournament
       return activeTournaments.map((tournament) => ({
         ...tournament,
         hasEntered: tournament.participants.includes(playerWallet),
@@ -300,4 +284,37 @@ export class TournamentManager {
         const easyEndTime = new Date(now);
         easyEndTime.setDate(now.getDate() + 1);
         TournamentManager.createTournament(
+          'Easy Tournament',
+          0.01,
+          now,
+          easyEndTime,
+          'easy'
+        );
 
+        // Medium tournament – ends in 3 days
+        const mediumEndTime = new Date(now);
+        mediumEndTime.setDate(now.getDate() + 3);
+        TournamentManager.createTournament(
+          'Medium Tournament',
+          0.1,
+          now,
+          mediumEndTime,
+          'medium'
+        );
+
+        // Hard tournament – ends in 7 days
+        const hardEndTime = new Date(now);
+        hardEndTime.setDate(now.getDate() + 7);
+        TournamentManager.createTournament(
+          'Hard Tournament',
+          0.9,
+          now,
+          hardEndTime,
+          'hard'
+        );
+      }
+    } catch (error) {
+      console.error('Error initializing tournaments:', error);
+    }
+  }
+}
