@@ -11,6 +11,7 @@ export default defineConfig(({ mode }) => ({
     }),
     react(),
   ],
+  envPrefix: ["VITE_", "NEXT_PUBLIC_"],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

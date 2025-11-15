@@ -6,7 +6,8 @@ import { toast } from 'sonner';
 const TREASURY_WALLET = new PublicKey('J2Vz7te8H8gfUSV6epJtLAJsyAjmRpee5cjjDVuR8tWn');
 
 // Fee settings
-const FEE_PERCENTAGE = 0.005; // 0.5%
+// Platform takes a 5% cut from entry fees with a 0.01 SOL cap for amounts above 0.1 SOL
+const FEE_PERCENTAGE = 0.05; // 5%
 const FIXED_FEE_THRESHOLD = 0.1; // For transactions >= 0.1 SOL
 const FIXED_FEE = 0.01; // Fixed 0.01 SOL fee for transactions above threshold
 
