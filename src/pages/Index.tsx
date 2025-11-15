@@ -15,6 +15,7 @@ import Leaderboard from '@/components/Leaderboard';
 import { LeaderboardManager } from '@/lib/leaderboard';
 import { TournamentManager } from '@/lib/tournament';
 import { formatTime, shuffleArray } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 // Helper για assets (GitHub Pages / Vite BASE_URL)
 const withBasePath = (path: string) => {
@@ -62,8 +63,12 @@ const CARD_DIMENSIONS: Record<'easy' | 'medium' | 'hard', { width: number; heigh
 };
 
 const CARD_SETS: Record<'set1' | 'set2', string[]> = {
-  set1: Array.from({ length: 8 }, (_, i) => withBasePath(`assets/images/cards/set1_${i + 1}.png`)),
-  set2: Array.from({ length: 8 }, (_, i) => withBasePath(`assets/images/cards/set2_${i + 1}.png`)),
+  set1: Array.from({ length: 8 }, (_, i) =>
+    withBasePath(`assets/images/cards/set1_${i + 1}.png`)
+  ),
+  set2: Array.from({ length: 8 }, (_, i) =>
+    withBasePath(`assets/images/cards/set2_${i + 1}.png`)
+  ),
 };
 
 const CARD_BACK_URL = withBasePath('assets/images/cards/card-back.png');
@@ -74,7 +79,9 @@ export default function MemoryGame() {
   const { connection } = useConnection();
   const wallet = useWallet();
   const { publicKey, connected } = wallet;
+  const isMobile = useIsMobile();
 
+  // Game state
   const [cards, setCards] = useState<MemoryCard[]>([]);
   const [firstCard, setFirstCard] = useState<number | null>(null);
   const [secondCard, setSecondCard] = useState<number | null>(null);
@@ -140,7 +147,8 @@ export default function MemoryGame() {
       timer.current = null;
     }
 
-    const completionTime = typeof finalTimeOverride === 'number' ? finalTimeOverride : currentTime;
+    const completionTime =
+      typeof finalTimeOverride === 'number' ? finalTimeOverride : currentTime;
     const computedScore = calculateScore(completionTime, moves);
 
     setGameActive(false);
@@ -166,7 +174,7 @@ export default function MemoryGame() {
           isTournamentMode ? selectedTournament || undefined : undefined
         );
 
-        setLeaderboardRefreshTrigger(prev => prev + 1);
+        setLeaderboardRefreshTrigger((prev) => prev + 1);
         toast.success('Your score has been recorded!');
       } catch (error) {
         console.error('Error saving score:', error);
@@ -190,7 +198,11 @@ export default function MemoryGame() {
     gameOverRef.current = false;
 
     if (isTournamentMode && selectedTournament) {
-      const entered = await TournamentManager.enterTournament(connection, wallet, selectedTournament);
+      const entered = await TournamentManager.enterTournament(
+        connection,
+        wallet,
+        selectedTournament
+      );
       if (!entered) {
         setIsLoading(false);
         return;
@@ -199,6 +211,7 @@ export default function MemoryGame() {
 
     const config = DIFFICULTY_SETTINGS[difficulty];
     const imagePool = CARD_SETS[cardSet] ?? CARD_SETS.set1;
+
     const selectedImages = Array.from(
       { length: config.cardPairs },
       (_, i) => imagePool[i % imagePool.length]
@@ -206,8 +219,18 @@ export default function MemoryGame() {
 
     let cardData: MemoryCard[] = [];
     selectedImages.forEach((image, index) => {
-      const card1: MemoryCard = { id: index * 2, imageUrl: image, isFlipped: false, isMatched: false };
-      const card2: MemoryCard = { id: index * 2 + 1, imageUrl: image, isFlipped: false, isMatched: false };
+      const card1: MemoryCard = {
+        id: index * 2,
+        imageUrl: image,
+        isFlipped: false,
+        isMatched: false,
+      };
+      const card2: MemoryCard = {
+        id: index * 2 + 1,
+        imageUrl: image,
+        isFlipped: false,
+        isMatched: false,
+      };
       cardData.push(card1, card2);
     });
 
@@ -221,7 +244,7 @@ export default function MemoryGame() {
     setCurrentTime(0);
 
     timer.current = setInterval(() => {
-      setCurrentTime(prev => {
+      setCurrentTime((prev) => {
         const newTime = prev + 1;
         if (newTime >= config.timeLimit) {
           if (timer.current) {
@@ -240,7 +263,14 @@ export default function MemoryGame() {
   };
 
   const handleCardClick = (index: number) => {
-    if (!gameActive || gameOver || cards[index].isFlipped || cards[index].isMatched || secondCard !== null) return;
+    if (
+      !gameActive ||
+      gameOver ||
+      cards[index].isFlipped ||
+      cards[index].isMatched ||
+      secondCard !== null
+    )
+      return;
 
     const updatedCards = [...cards];
     updatedCards[index] = { ...updatedCards[index], isFlipped: true };
@@ -252,7 +282,7 @@ export default function MemoryGame() {
     }
 
     setSecondCard(index);
-    setMoves(prev => prev + 1);
+    setMoves((prev) => prev + 1);
 
     if (updatedCards[firstCard].imageUrl === updatedCards[index].imageUrl) {
       updatedCards[firstCard] = { ...updatedCards[firstCard], isMatched: true };
@@ -261,14 +291,20 @@ export default function MemoryGame() {
       flipTimeout.current = setTimeout(() => {
         setFirstCard(null);
         setSecondCard(null);
-        if (updatedCards.every(card => card.isMatched)) endGame(true);
+        if (updatedCards.every((card) => card.isMatched)) endGame(true);
       }, 500);
 
       setCards(updatedCards);
     } else {
       flipTimeout.current = setTimeout(() => {
-        updatedCards[firstCard] = { ...updatedCards[firstCard], isFlipped: false };
-        updatedCards[index] = { ...updatedCards[index], isFlipped: false };
+        updatedCards[firstCard] = {
+          ...updatedCards[firstCard],
+          isFlipped: false,
+        };
+        updatedCards[index] = {
+          ...updatedCards[index],
+          isFlipped: false,
+        };
         setCards(updatedCards);
         setFirstCard(null);
         setSecondCard(null);
@@ -288,7 +324,8 @@ export default function MemoryGame() {
 
   const renderCard = (card: MemoryCard, index: number) => {
     const isRevealed = card.isFlipped || card.isMatched;
-    const { width, height } = CARD_DIMENSIONS[difficulty] ?? CARD_DIMENSIONS.medium;
+    const { width, height } =
+      CARD_DIMENSIONS[difficulty] ?? CARD_DIMENSIONS.medium;
 
     return (
       <button
@@ -301,7 +338,11 @@ export default function MemoryGame() {
           card.isMatched
             ? 'border-emerald-400 shadow-lg shadow-emerald-500/40'
             : 'border-indigo-400/70 shadow shadow-indigo-500/20 hover:shadow-indigo-500/40'
-        } ${!gameActive || gameOver ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}`}
+        } ${
+          !gameActive || gameOver
+            ? 'cursor-not-allowed opacity-70'
+            : 'cursor-pointer'
+        }`}
         style={{ width, height }}
       >
         <div className="absolute inset-0" style={{ perspective: '1000px' }}>
@@ -357,6 +398,17 @@ export default function MemoryGame() {
   };
 
   const getGridColumns = () => {
+    if (isMobile) {
+      switch (difficulty) {
+        case 'easy':
+        case 'medium':
+          return 'grid-cols-2';
+        case 'hard':
+          return 'grid-cols-3';
+        default:
+          return 'grid-cols-2';
+      }
+    }
     switch (difficulty) {
       case 'easy':
         return 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4';
@@ -379,7 +431,9 @@ export default function MemoryGame() {
           </div>
           <div className="flex flex-col items-center">
             <span className="mb-1 text-sm text-muted-foreground">Time</span>
-            <span className="text-3xl font-bold font-mono">{formatTime(currentTime)}</span>
+            <span className="text-3xl font-bold font-mono">
+              {formatTime(currentTime)}
+            </span>
           </div>
         </div>
         <Separator className="my-4" />
@@ -397,7 +451,10 @@ export default function MemoryGame() {
               {difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}
             </Badge>
             {isTournamentMode && (
-              <Badge variant="outline" className="bg-amber-900/20 text-amber-200">
+              <Badge
+                variant="outline"
+                className="bg-amber-900/20 text-amber-200"
+              >
                 Tournament
               </Badge>
             )}
@@ -421,7 +478,9 @@ export default function MemoryGame() {
             <h1 className="text-3xl font-bold tracking-tight text-foreground md:text-4xl">
               Solana Memory Game
             </h1>
-            <p className="text-muted-foreground">Match pairs of cards to win SOL prizes!</p>
+            <p className="text-muted-foreground">
+              Match pairs of cards to win SOL prizes!
+            </p>
           </div>
           <NetworkBadge />
         </div>
@@ -439,11 +498,15 @@ export default function MemoryGame() {
                         <Tabs
                           defaultValue={isTournamentMode ? 'tournament' : 'practice'}
                           className="w-full"
-                          onValueChange={(val) => toggleTournamentMode(val === 'tournament')}
+                          onValueChange={(val) =>
+                            toggleTournamentMode(val === 'tournament')
+                          }
                         >
                           <TabsList className="grid w-full grid-cols-2">
                             <TabsTrigger value="practice">Practice</TabsTrigger>
-                            <TabsTrigger value="tournament">Tournament</TabsTrigger>
+                            <TabsTrigger value="tournament">
+                              Tournament
+                            </TabsTrigger>
                           </TabsList>
                         </Tabs>
                       </div>
@@ -456,9 +519,16 @@ export default function MemoryGame() {
                               value={selectedTournament ?? ''}
                               onValueChange={(value) => {
                                 setSelectedTournament(value);
-                                const tournament = activeTournaments.find((t) => t.id === value);
+                                const tournament = activeTournaments.find(
+                                  (t) => t.id === value
+                                );
                                 if (tournament) {
-                                  setDifficulty(tournament.difficulty as 'easy' | 'medium' | 'hard');
+                                  setDifficulty(
+                                    tournament.difficulty as
+                                      | 'easy'
+                                      | 'medium'
+                                      | 'hard'
+                                  );
                                 }
                               }}
                             >
@@ -467,7 +537,10 @@ export default function MemoryGame() {
                               </SelectTrigger>
                               <SelectContent>
                                 {activeTournaments.map((tournament) => (
-                                  <SelectItem key={tournament.id} value={tournament.id}>
+                                  <SelectItem
+                                    key={tournament.id}
+                                    value={tournament.id}
+                                  >
                                     {tournament.name}
                                   </SelectItem>
                                 ))}
@@ -482,26 +555,38 @@ export default function MemoryGame() {
                       ) : (
                         <>
                           <div className="space-y-2">
-                            <label className="text-sm font-medium">Difficulty</label>
+                            <label className="text-sm font-medium">
+                              Difficulty
+                            </label>
                             <Select
                               value={difficulty}
                               onValueChange={(value) =>
-                                setDifficulty(value as 'easy' | 'medium' | 'hard')
+                                setDifficulty(
+                                  value as 'easy' | 'medium' | 'hard'
+                                )
                               }
                             >
                               <SelectTrigger>
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="easy">Easy (6 pairs)</SelectItem>
-                                <SelectItem value="medium">Medium (8 pairs)</SelectItem>
-                                <SelectItem value="hard">Hard (12 pairs)</SelectItem>
+                                <SelectItem value="easy">
+                                  Easy (6 pairs)
+                                </SelectItem>
+                                <SelectItem value="medium">
+                                  Medium (8 pairs)
+                                </SelectItem>
+                                <SelectItem value="hard">
+                                  Hard (12 pairs)
+                                </SelectItem>
                               </SelectContent>
                             </Select>
                           </div>
 
                           <div className="space-y-2">
-                            <label className="text-sm font-medium">Card Set</label>
+                            <label className="text-sm font-medium">
+                              Card Set
+                            </label>
                             <Select
                               value={cardSet}
                               onValueChange={(value) =>
@@ -512,8 +597,12 @@ export default function MemoryGame() {
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="set1">Solana Symbols</SelectItem>
-                                <SelectItem value="set2">Crypto Icons</SelectItem>
+                                <SelectItem value="set1">
+                                  Solana Symbols
+                                </SelectItem>
+                                <SelectItem value="set2">
+                                  Crypto Icons
+                                </SelectItem>
                               </SelectContent>
                             </Select>
                           </div>
@@ -522,10 +611,14 @@ export default function MemoryGame() {
 
                       <Button
                         onClick={initializeGame}
-                        disabled={isTournamentMode && (!selectedTournament || !connected)}
+                        disabled={
+                          isTournamentMode && (!selectedTournament || !connected)
+                        }
                         className="mt-2"
                       >
-                        {isLoading ? <Spinner size="sm" className="mr-2" /> : null}
+                        {isLoading ? (
+                          <Spinner size="sm" className="mr-2" />
+                        ) : null}
                         Start Game
                       </Button>
 
@@ -547,14 +640,19 @@ export default function MemoryGame() {
             {/* Game board */}
             <div className="rounded-lg border-2 bg-card p-4">
               {cards.length > 0 ? (
-                <div className={`grid ${getGridColumns()} place-items-center gap-2 sm:gap-4`}>
+                <div
+                  className={`grid ${getGridColumns()} place-items-center gap-2 sm:gap-4`}
+                >
                   {cards.map((card, index) => renderCard(card, index))}
                 </div>
               ) : (
                 <div className="flex h-80 flex-col items-center justify-center text-center">
-                  <h3 className="mb-2 text-xl font-semibold">Welcome to Solana Memory Game!</h3>
+                  <h3 className="mb-2 text-xl font-semibold">
+                    Welcome to Solana Memory Game!
+                  </h3>
                   <p className="mb-4 text-muted-foreground">
-                    Select your game options and click &apos;Start Game&apos; to begin.
+                    Select your game options and click &apos;Start Game&apos; to
+                    begin.
                   </p>
                   <img
                     src={CARD_BACK_URL}
@@ -571,9 +669,17 @@ export default function MemoryGame() {
                 <h3 className="mb-2 font-semibold">How to Play</h3>
                 <ul className="list-disc space-y-1 pl-4 text-sm text-muted-foreground">
                   <li>Click on cards to flip them and find matching pairs</li>
-                  <li>Each difficulty has a time limit: Easy (2 min), Medium (3 min), Hard (4 min)</li>
-                  <li>Tournament mode requires connecting a Solana wallet and paying an entry fee</li>
-                  <li>Win prizes by ranking high on tournament leaderboards</li>
+                  <li>
+                    Each difficulty has a time limit: Easy (2 min), Medium (3
+                    min), Hard (4 min)
+                  </li>
+                  <li>
+                    Tournament mode requires connecting a Solana wallet and
+                    paying an entry fee
+                  </li>
+                  <li>
+                    Win prizes by ranking high on tournament leaderboards
+                  </li>
                 </ul>
               </CardContent>
             </Card>
@@ -589,10 +695,15 @@ export default function MemoryGame() {
         </div>
 
         {/* Game Result Dialog */}
-        <Dialog open={gameResultDialogOpen} onOpenChange={setGameResultDialogOpen}>
+        <Dialog
+          open={gameResultDialogOpen}
+          onOpenChange={setGameResultDialogOpen}
+        >
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>{gameWon ? 'Congratulations! 🎉' : 'Game Over'}</DialogTitle>
+              <DialogTitle>
+                {gameWon ? 'Congratulations! 🎉' : 'Game Over'}
+              </DialogTitle>
             </DialogHeader>
 
             {gameWon ? (
@@ -612,7 +723,9 @@ export default function MemoryGame() {
                   </div>
                   <div className="col-span-2 rounded bg-muted p-3 text-center">
                     <div className="text-sm text-muted-foreground">Score</div>
-                    <div className="text-3xl font-bold text-primary">{finalScore}</div>
+                    <div className="text-3xl font-bold text-primary">
+                      {finalScore}
+                    </div>
                   </div>
                 </div>
 
@@ -674,3 +787,4 @@ export default function MemoryGame() {
     </div>
   );
 }
+

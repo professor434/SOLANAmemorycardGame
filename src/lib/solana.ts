@@ -1,23 +1,28 @@
-import { PublicKey, Transaction, SystemProgram, Connection, LAMPORTS_PER_SOL } from '@solana/web3.js';
+import {
+  PublicKey,
+  Transaction,
+  SystemProgram,
+  Connection,
+  LAMPORTS_PER_SOL,
+} from '@solana/web3.js';
 import { WalletContextState } from '@solana/wallet-adapter-react';
 import { toast } from 'sonner';
 
 // Treasury wallet address - The wallet that will receive entry fees
-const TREASURY_WALLET = new PublicKey('J2Vz7te8H8gfUSV6epJtLAJsyAjmRpee5cjjDVuR8tWn');
+const TREASURY_WALLET = new PublicKey(
+  '2WPrEmPFTWfG9WfMDd3W6SGYUvFeTgLbNpAwbJ5nvX4c'
+);
 
-// Fee settings
-// Platform takes a 5% cut from entry fees with a 0.01 SOL cap for amounts above 0.1 SOL
-const FEE_PERCENTAGE = 0.05; // 5%
-const FIXED_FEE_THRESHOLD = 0.1; // For transactions >= 0.1 SOL
-const FIXED_FEE = 0.01; // Fixed 0.01 SOL fee for transactions above threshold
+// Fee settings (0.1%)
+const FEE_PERCENTAGE = 0.001; // 0.1%
 
 /**
- * Make a payment of SOL
+ * Make a payment of SOL (entry fee)
  */
 export async function makePayment(
   connection: Connection,
   wallet: WalletContextState,
-  amount: number,
+  amount: number
 ): Promise<boolean> {
   try {
     if (!wallet.publicKey || !wallet.signTransaction) {
@@ -26,16 +31,7 @@ export async function makePayment(
     }
 
     // Calculate fee
-    let fee = amount * FEE_PERCENTAGE;
-    if (amount >= FIXED_FEE_THRESHOLD) {
-      fee = FIXED_FEE;
-    }
-
-    // Make sure fee is reasonable
-    if (fee <= 0) {
-      fee = 0.001; // Minimum fee of 0.001 SOL
-    }
-
+    const fee = amount * FEE_PERCENTAGE;
     const totalAmount = amount + fee;
 
     // Convert SOL to lamports
@@ -57,11 +53,13 @@ export async function makePayment(
 
     // Sign and send transaction
     const signedTransaction = await wallet.signTransaction(transaction);
-    const txid = await connection.sendRawTransaction(signedTransaction.serialize());
+    const txid = await connection.sendRawTransaction(
+      signedTransaction.serialize()
+    );
 
     // Wait for confirmation
     const confirmation = await connection.confirmTransaction(txid, 'confirmed');
-    
+
     if (confirmation.value.err) {
       toast.error('Transaction failed');
       return false;
@@ -69,9 +67,9 @@ export async function makePayment(
 
     toast.success(`Payment of ${totalAmount} SOL successful!`);
     return true;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Payment error:', error);
-    toast.error(`Payment failed: ${error.message}`);
+    toast.error(`Payment failed: ${error?.message ?? 'Unknown error'}`);
     return false;
   }
 }
@@ -110,21 +108,28 @@ export async function distributePrize(
 
     // Sign and send transaction
     const signedTransaction = await wallet.signTransaction(transaction);
-    const txid = await connection.sendRawTransaction(signedTransaction.serialize());
+    const txid = await connection.sendRawTransaction(
+      signedTransaction.serialize()
+    );
 
     // Wait for confirmation
     const confirmation = await connection.confirmTransaction(txid, 'confirmed');
-    
+
     if (confirmation.value.err) {
       toast.error('Prize distribution failed');
       return false;
     }
 
-    toast.success(`Prize of ${amount} SOL sent to ${winnerAddress.slice(0, 6)}...${winnerAddress.slice(-4)}`);
+    toast.success(
+      `Prize of ${amount} SOL sent to ${winnerAddress.slice(
+        0,
+        6
+      )}...${winnerAddress.slice(-4)}`
+    );
     return true;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Prize distribution error:', error);
-    toast.error(`Prize distribution failed: ${error.message}`);
+    toast.error(`Prize distribution failed: ${error?.message ?? 'Unknown error'}`);
     return false;
   }
 }
@@ -156,18 +161,22 @@ export async function requestAirdrop(
   try {
     const lamports = amount * LAMPORTS_PER_SOL;
     const signature = await connection.requestAirdrop(publicKey, lamports);
-    const confirmation = await connection.confirmTransaction(signature, 'confirmed');
-    
+    const confirmation = await connection.confirmTransaction(
+      signature,
+      'confirmed'
+    );
+
     if (confirmation.value.err) {
       toast.error('Airdrop failed');
       return false;
     }
-    
+
     toast.success(`${amount} SOL airdropped successfully!`);
     return true;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Airdrop error:', error);
-    toast.error(`Airdrop failed: ${error.message}`);
+    toast.error(`Airdrop failed: ${error?.message ?? 'Unknown error'}`);
     return false;
   }
 }
+
