@@ -9,13 +9,21 @@ export function cn(...inputs: ClassValue[]) {
 /**
  * Truncate wallet address for display
  */
-export function truncateWalletAddress(address: string, startLength = 4, endLength = 4): string {
+export function truncateWalletAddress(
+  address: string | PublicKey | null | undefined,
+  startLength = 4,
+  endLength = 4
+): string {
   if (!address) return '';
-  if (address.length <= startLength + endLength) return address;
-  
-  const start = address.substring(0, startLength);
-  const end = address.substring(address.length - endLength);
-  
+
+  // Ensure we are working with a string representation
+  const addressStr = typeof address === 'string' ? address : address.toString();
+
+  if (addressStr.length <= startLength + endLength) return addressStr;
+
+  const start = addressStr.substring(0, startLength);
+  const end = addressStr.substring(addressStr.length - endLength);
+
   return `${start}...${end}`;
 }
 

@@ -1,192 +1,667 @@
-import { useEffect, useState } from 'react';
-import { LeaderboardEntry, LeaderboardManager, Tournament } from '@/lib/leaderboard';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useWallet } from '@solana/wallet-adapter-react';
-import { formatTimeRemaining, truncateWalletAddress, formatSOL } from '@/lib/utils';
-import { Spinner } from '@/components/ui/spinner';
-import { TournamentManager } from '@/lib/tournament';
+// src/pages/Index.tsx
+import React, { useState, useEffect, useRef } from 'react';
+import { useWallet, useConnection } from '@solana/wallet-adapter-react';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Card, CardContent } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
+import { toast } from 'sonner';
+import { Spinner } from '@/components/ui/spinner';
+import WalletButton from '@/components/WalletButton';
+import Leaderboard from '@/components/Leaderboard';
+import { LeaderboardManager } from '@/lib/leaderboard';
+import { TournamentManager } from '@/lib/tournament';
+import { formatTime, shuffleArray } from '@/lib/utils';
 
-interface LeaderboardProps {
-  difficulty: 'easy' | 'medium' | 'hard';
-  className?: string;
+// Base path helper (Vite-friendly, good for GitHub Pages etc.)
+const withBasePath = (path: string) => {
+  const base = import.meta.env.BASE_URL || '/';
+  const normalizedBase = base.endsWith('/') ? base : `${base}/`;
+  const normalizedPath = path.startsWith('/') ? path.slice(1) : path;
+  return `${normalizedBase}${normalizedPath}`;
+};
+
+// Network badge (adapted for Vite env)
+const NetworkBadge: React.FC = () => {
+  const network = import.meta.env.VITE_SOLANA_NETWORK || 'mainnet-beta';
+  const endpoint = import.meta.env.VITE_SOLANA_RPC || '';
+  return (
+    <div className="inline-flex items-center gap-3 p-2 rounded-md text-sm bg-muted/30">
+      <span className="font-medium">App Network:</span>
+      <span className="font-bold">{network}</span>
+      {endpoint ? (
+        <span className="opacity-70 truncate max-w-xs">
+          {endpoint.replace(/^https?:\/\//, '')}
+        </span>
+      ) : null}
+    </div>
+  );
+};
+
+interface CardType {
+  id: number;
+  imageUrl: string;
+  isFlipped: boolean;
+  isMatched: boolean;
 }
 
-export function Leaderboard({ difficulty, className }: LeaderboardProps) {
-  const { publicKey } = useWallet();
-  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
-  const [tournamentLeaderboard, setTournamentLeaderboard] = useState<LeaderboardEntry[]>([]);
-  const [tournament, setTournament] = useState<Tournament | null>(null);
-  const [timeRemaining, setTimeRemaining] = useState<string>('');
-  const [loading, setLoading] = useState<boolean>(true);
-  const [activeTab, setActiveTab] = useState<string>('regular');
-  const [prizeDistribution, setPrizeDistribution] = useState<{ rank: number; percentage: number; amount: number }[]>([]);
+const DIFFICULTY_SETTINGS = {
+  easy: { cardPairs: 6, timeLimit: 120 },
+  medium: { cardPairs: 8, timeLimit: 180 },
+  hard: { cardPairs: 12, timeLimit: 240 },
+} as const;
 
-  // Load leaderboard and tournament data
+const CARD_DIMENSIONS: Record<'easy' | 'medium' | 'hard', { width: number; height: number }> = {
+  easy: { width: 148, height: 196 },
+  medium: { width: 132, height: 178 },
+  hard: { width: 112, height: 152 },
+};
+
+const CARD_SETS: Record<'set1' | 'set2', string[]> = {
+  set1: Array.from({ length: 8 }, (_, i) => withBasePath(`assets/images/cards/set1_${i + 1}.png`)),
+  set2: Array.from({ length: 8 }, (_, i) => withBasePath(`assets/images/cards/set2_${i + 1}.png`)),
+};
+
+const CARD_BACK_URL = withBasePath('assets/images/cards/card-back.png');
+const BACKGROUND_URL = withBasePath('assets/images/background.png');
+const LOGO_URL = withBasePath('assets/images/logo.png');
+
+export default function MemoryGame() {
+  const { connection } = useConnection();
+  const wallet = useWallet();
+  const { publicKey, connected } = wallet;
+
+  // Game state
+  const [cards, setCards] = useState<CardType[]>([]);
+  const [firstCard, setFirstCard] = useState<number | null>(null);
+  const [secondCard, setSecondCard] = useState<number | null>(null);
+  const [moves, setMoves] = useState<number>(0);
+  const [gameOver, setGameOver] = useState<boolean>(false);
+  const [gameWon, setGameWon] = useState<boolean>(false);
+  const [gameActive, setGameActive] = useState<boolean>(false);
+  const [gameCompleteTime, setGameCompleteTime] = useState<number | null>(null);
+  const [currentTime, setCurrentTime] = useState<number>(0);
+  const [finalScore, setFinalScore] = useState<number>(0);
+  const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
+  const [cardSet, setCardSet] = useState<'set1' | 'set2'>('set1');
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  // Tournament state
+  const [isTournamentMode, setIsTournamentMode] = useState<boolean>(false);
+  const [selectedTournament, setSelectedTournament] = useState<string | null>(null);
+  const [activeTournaments, setActiveTournaments] = useState<any[]>([]);
+  const [gameResultDialogOpen, setGameResultDialogOpen] = useState<boolean>(false);
+  const [leaderboardRefreshTrigger, setLeaderboardRefreshTrigger] = useState<number>(0);
+
+  // Refs
+  const timer = useRef<NodeJS.Timeout | null>(null);
+  const flipTimeout = useRef<NodeJS.Timeout | null>(null);
+
   useEffect(() => {
-    const loadData = () => {
-      // Regular leaderboard
-      const regularLeaderboard = LeaderboardManager.getLeaderboardByDifficulty(difficulty);
-      setLeaderboard(regularLeaderboard.slice(0, 10)); // Show top 10
+    TournamentManager.initializeTournaments();
+    loadActiveTournaments();
 
-      // Get active tournament
-      const activeTournament = LeaderboardManager.getActiveTournamentByDifficulty(difficulty);
-      setTournament(activeTournament);
-
-      // If tournament exists, get tournament leaderboard
-      if (activeTournament) {
-        const tournamentLeaderboardData = LeaderboardManager.getTournamentLeaderboard(activeTournament.id);
-        setTournamentLeaderboard(tournamentLeaderboardData.slice(0, 10)); // Show top 10
-
-        // Calculate prize distribution
-        const prizes = TournamentManager.calculatePrizeDistribution(activeTournament.id);
-        setPrizeDistribution(prizes);
-
-        // Update time remaining
-        const remaining = LeaderboardManager.getTournamentTimeRemaining(activeTournament.id);
-        setTimeRemaining(formatTimeRemaining(remaining));
-      } else {
-        setTournamentLeaderboard([]);
-        setPrizeDistribution([]);
-        setTimeRemaining('');
-      }
-
-      setLoading(false);
+    return () => {
+      if (timer.current) clearInterval(timer.current);
+      if (flipTimeout.current) clearTimeout(flipTimeout.current);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-    loadData();
+  const loadActiveTournaments = () => {
+    const tournaments = TournamentManager.getActiveTournaments();
+    setActiveTournaments(tournaments);
 
-    // Update time remaining every second
-    const interval = setInterval(() => {
-      if (tournament) {
-        const remaining = LeaderboardManager.getTournamentTimeRemaining(tournament.id);
-        setTimeRemaining(formatTimeRemaining(remaining));
+    if (tournaments.length > 0 && isTournamentMode && !selectedTournament) {
+      setSelectedTournament(tournaments[0].id);
+      setDifficulty(tournaments[0].difficulty as 'easy' | 'medium' | 'hard');
+    }
+  };
+
+  const initializeGame = async () => {
+    if (timer.current) clearInterval(timer.current);
+    if (flipTimeout.current) clearTimeout(flipTimeout.current);
+
+    setIsLoading(true);
+
+    if (isTournamentMode && selectedTournament) {
+      const entered = await TournamentManager.enterTournament(connection, wallet, selectedTournament);
+      if (!entered) {
+        setIsLoading(false);
+        return;
       }
+    }
+
+    const config = DIFFICULTY_SETTINGS[difficulty];
+    const cardImages = CARD_SETS[cardSet] ?? CARD_SETS.set1;
+
+    const cardPairs = config.cardPairs;
+    const imagePool = cardImages.length > 0 ? cardImages : [CARD_BACK_URL];
+    const selectedImages = Array.from(
+      { length: cardPairs },
+      (_, index) => imagePool[index % imagePool.length]
+    );
+
+    let cardData: CardType[] = [];
+    selectedImages.forEach((image, index) => {
+      const card1: CardType = { id: index * 2, imageUrl: image, isFlipped: false, isMatched: false };
+      const card2: CardType = { id: index * 2 + 1, imageUrl: image, isFlipped: false, isMatched: false };
+      cardData.push(card1, card2);
+    });
+
+    cardData = shuffleArray(cardData);
+
+    setCards(cardData);
+    setFirstCard(null);
+    setSecondCard(null);
+    setMoves(0);
+    setGameOver(false);
+    setGameWon(false);
+    setGameActive(true);
+    setGameCompleteTime(null);
+    setCurrentTime(0);
+
+    const timerConfig = DIFFICULTY_SETTINGS[difficulty];
+
+    timer.current = setInterval(() => {
+      setCurrentTime(prev => {
+        const newTime = prev + 1;
+        if (newTime >= timerConfig.timeLimit) {
+          if (timer.current) clearInterval(timer.current);
+          setGameOver(true);
+          setGameActive(false);
+          return prev;
+        }
+        return newTime;
+      });
     }, 1000);
 
-    return () => clearInterval(interval);
-  }, [difficulty, publicKey]);
+    setIsLoading(false);
+  };
 
-  if (loading) {
+  const handleCardClick = (index: number) => {
+    if (!gameActive || gameOver || cards[index].isFlipped || cards[index].isMatched || secondCard !== null) return;
+
+    const updatedCards = [...cards];
+    updatedCards[index] = { ...updatedCards[index], isFlipped: true };
+    setCards(updatedCards);
+
+    if (firstCard === null) {
+      setFirstCard(index);
+    } else {
+      setSecondCard(index);
+      setMoves(prev => prev + 1);
+
+      if (cards[firstCard].imageUrl === cards[index].imageUrl) {
+        updatedCards[firstCard] = { ...updatedCards[firstCard], isMatched: true };
+        updatedCards[index] = { ...updatedCards[index], isMatched: true };
+
+        flipTimeout.current = setTimeout(() => {
+          setFirstCard(null);
+          setSecondCard(null);
+          if (updatedCards.every(card => card.isMatched)) endGame(true);
+        }, 500);
+
+        setCards(updatedCards);
+      } else {
+        flipTimeout.current = setTimeout(() => {
+          updatedCards[firstCard] = { ...updatedCards[firstCard], isFlipped: false };
+          updatedCards[index] = { ...updatedCards[index], isFlipped: false };
+          setCards(updatedCards);
+          setFirstCard(null);
+          setSecondCard(null);
+        }, 1000);
+      }
+    }
+  };
+
+  const calculateScore = (time: number, moveCount: number) => {
+    const config = DIFFICULTY_SETTINGS[difficulty];
+    const baseScore = config.cardPairs * 100;
+    const timeBonus = Math.max(0, config.timeLimit - time) * 10;
+    const moveBonus = Math.max(0, config.cardPairs * 3 - moveCount) * 50;
+    return baseScore + timeBonus + moveBonus;
+  };
+
+  const endGame = (won: boolean) => {
+    if (timer.current) {
+      clearInterval(timer.current);
+      timer.current = null;
+    }
+
+    setGameActive(false);
+    setGameWon(won);
+    setGameOver(true);
+    setGameResultDialogOpen(true);
+    setGameCompleteTime(currentTime);
+
+    if (won) {
+      const score = calculateScore(currentTime, moves);
+      setFinalScore(score);
+
+      if (connected && publicKey) {
+        try {
+          LeaderboardManager.addScore(
+            publicKey.toString(),
+            score,
+            difficulty,
+            moves,
+            currentTime,
+            isTournamentMode ? selectedTournament || undefined : undefined
+          );
+          setLeaderboardRefreshTrigger(prev => prev + 1);
+          toast.success('Your score has been recorded!');
+        } catch (error) {
+          console.error('Error saving score:', error);
+          toast.error('Failed to save your score');
+        }
+      } else {
+        toast.info('Connect your wallet to save your score to the leaderboard!');
+      }
+    } else {
+      // Even on loss, compute score so user can see it
+      setFinalScore(calculateScore(currentTime, moves));
+    }
+  };
+
+  const toggleTournamentMode = (enabled: boolean) => {
+    setIsTournamentMode(enabled);
+    if (enabled) {
+      loadActiveTournaments();
+    } else {
+      setSelectedTournament(null);
+    }
+  };
+
+  const renderCard = (card: CardType, index: number) => {
+    const isRevealed = card.isFlipped || card.isMatched;
+    const { width, height } = CARD_DIMENSIONS[difficulty] ?? CARD_DIMENSIONS.medium;
+
     return (
-      <Card className={className}>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-lg">Leaderboard</CardTitle>
-        </CardHeader>
-        <CardContent className="flex justify-center py-10">
-          <Spinner size="lg" />
-        </CardContent>
-      </Card>
+      <button
+        key={card.id}
+        type="button"
+        onClick={() => handleCardClick(index)}
+        disabled={!gameActive || card.isMatched || gameOver}
+        aria-pressed={isRevealed}
+        className={`relative rounded-2xl border transition-shadow duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 ${
+          card.isMatched
+            ? 'border-emerald-400 shadow-lg shadow-emerald-500/40'
+            : 'border-indigo-400/70 shadow shadow-indigo-500/20 hover:shadow-indigo-500/40'
+        } ${!gameActive || gameOver ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}`}
+        style={{ width, height }}
+      >
+        <div className="absolute inset-0 rounded-2xl overflow-hidden bg-slate-950/90">
+          <img
+            src={card.imageUrl}
+            alt="Card front"
+            className={`absolute inset-0 h-full w-full object-contain p-3 transition-opacity duration-300 ${
+              isRevealed ? 'opacity-100' : 'opacity-0'
+            }`}
+            draggable={false}
+            onError={(event) => {
+              (event.currentTarget as HTMLImageElement).src = CARD_BACK_URL;
+            }}
+          />
+
+          <img
+            src={CARD_BACK_URL}
+            alt="Card back"
+            className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-300 ${
+              isRevealed ? 'opacity-0' : 'opacity-100'
+            }`}
+            draggable={false}
+          />
+
+          {!isRevealed && (
+            <span className="absolute inset-0 bg-gradient-to-br from-violet-600/50 via-indigo-600/60 to-blue-500/50 mix-blend-soft-light" />
+          )}
+        </div>
+
+        {card.isMatched && (
+          <span
+            className="absolute inset-1 rounded-2xl border-4 border-emerald-300/80 animate-pulse pointer-events-none"
+            aria-hidden="true"
+          />
+        )}
+      </button>
     );
-  }
+  };
 
-  return (
-    <Card className={className}>
-      <CardHeader className="pb-2">
-        <CardTitle className="flex justify-between items-center text-lg">
-          <span>Leaderboard</span>
-          <Badge variant="outline" className="capitalize">{difficulty}</Badge>
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <Tabs defaultValue="regular" onValueChange={setActiveTab}>
-          <TabsList className="grid grid-cols-2 mb-4">
-            <TabsTrigger value="regular">All Time</TabsTrigger>
-            <TabsTrigger value="tournament" disabled={!tournament}>
-              Tournament {tournament && <span className="ml-2 text-xs">{timeRemaining}</span>}
-            </TabsTrigger>
-          </TabsList>
+  const getGridColumns = () => {
+    switch (difficulty) {
+      case 'easy':
+        return 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4';
+      case 'medium':
+        return 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4';
+      case 'hard':
+        return 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6';
+      default:
+        return 'grid-cols-2';
+    }
+  };
 
-          <TabsContent value="regular">
-            {leaderboard.length === 0 ? (
-              <div className="py-6 text-center text-muted-foreground">
-                No scores recorded yet
-              </div>
-            ) : (
-              <div className="space-y-1">
-                {leaderboard.map((entry, index) => (
-                  <div
-                    key={entry.id}
-                    className={`flex justify-between py-2 px-3 rounded-md ${
-                      publicKey && entry.playerWallet === publicKey.toString()
-                        ? 'bg-amber-500/10 border-l-2 border-amber-500'
-                        : index % 2 === 0
-                        ? 'bg-muted/50'
-                        : ''
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium w-5">{index + 1}</span>
-                      <span className="text-sm">{truncateWalletAddress(entry.playerWallet)}</span>
-                    </div>
-                    <span className="text-sm font-mono">{entry.score}</span>
-                  </div>
-                ))}
-              </div>
+  const renderStatsCard = () => (
+    <Card>
+      <CardContent className="pt-6">
+        <div className="grid grid-cols-2 gap-4">
+          <div className="flex flex-col items-center">
+            <span className="text-sm text-muted-foreground mb-1">Moves</span>
+            <span className="text-3xl font-bold">{moves}</span>
+          </div>
+          <div className="flex flex-col items-center">
+            <span className="text-sm text-muted-foreground mb-1">Time</span>
+            <span className="text-3xl font-bold font-mono">{formatTime(currentTime)}</span>
+          </div>
+        </div>
+        <Separator className="my-4" />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Badge
+              variant={
+                difficulty === 'easy'
+                  ? 'default'
+                  : difficulty === 'medium'
+                  ? 'secondary'
+                  : 'destructive'
+              }
+            >
+              {difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}
+            </Badge>
+            {isTournamentMode && (
+              <Badge variant="outline" className="bg-amber-900/20 text-amber-200">
+                Tournament
+              </Badge>
             )}
-          </TabsContent>
-
-          <TabsContent value="tournament">
-            {!tournament ? (
-              <div className="py-6 text-center text-muted-foreground">
-                No active tournament
-              </div>
-            ) : (
-              <>
-                <div className="mb-4 space-y-1">
-                  <CardDescription>
-                    <span className="font-semibold">{tournament.name}</span>
-                    <span className="text-xs ml-2 text-muted-foreground">
-                      Entry: {formatSOL(tournament.entryFee)} • Pool: {formatSOL(tournament.prizePool)}
-                    </span>
-                  </CardDescription>
-                  {prizeDistribution.length > 0 && (
-                    <div className="flex gap-2 text-xs pt-1">
-                      {prizeDistribution.map((prize) => (
-                        <Badge key={prize.rank} variant="secondary" className="bg-amber-500/10 text-amber-600">
-                          {prize.rank === 1 ? '🥇' : prize.rank === 2 ? '🥈' : '🥉'} {formatSOL(prize.amount)}
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {tournamentLeaderboard.length === 0 ? (
-                  <div className="py-6 text-center text-muted-foreground">
-                    No participants yet
-                  </div>
-                ) : (
-                  <div className="space-y-1">
-                    {tournamentLeaderboard.map((entry, index) => (
-                      <div
-                        key={entry.id}
-                        className={`flex justify-between py-2 px-3 rounded-md ${
-                          publicKey && entry.playerWallet === publicKey.toString()
-                            ? 'bg-amber-500/10 border-l-2 border-amber-500'
-                            : index % 2 === 0
-                            ? 'bg-muted/50'
-                            : ''
-                        }`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium w-5">
-                            {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : index + 1}
-                          </span>
-                          <span className="text-sm">{truncateWalletAddress(entry.playerWallet)}</span>
-                        </div>
-                        <span className="text-sm font-mono">{entry.score}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </>
-            )}
-          </TabsContent>
-        </Tabs>
+          </div>
+          <div className="ml-auto">
+            <WalletButton variant="outline" size="sm" />
+          </div>
+        </div>
       </CardContent>
     </Card>
   );
-}
 
-export default Leaderboard;
+  return (
+    <div
+      className="min-h-screen bg-cover bg-center"
+      style={{ backgroundImage: `url(${BACKGROUND_URL})` }}
+    >
+      <div className="mx-auto max-w-full py-8 px-4">
+        <div className="text-center mb-8">
+          <img src={LOGO_URL} alt="Solana Memory Game Logo" className="h-24 mx-auto mb-4" />
+          <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-purple-400 to-blue-500 bg-clip-text text-transparent mb-2">
+            Solana Memory Game
+          </h1>
+          <p className="text-muted-foreground">Match pairs of cards to win SOL prizes!</p>
+          <div className="mt-3 flex justify-center">
+            <NetworkBadge />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Game Section */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Game Controls */}
+            {!gameActive && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="flex flex-col gap-4">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Game Mode</label>
+                        <Tabs
+                          defaultValue={isTournamentMode ? 'tournament' : 'practice'}
+                          className="w-full"
+                          onValueChange={(val) => toggleTournamentMode(val === 'tournament')}
+                        >
+                          <TabsList className="grid w-full grid-cols-2">
+                            <TabsTrigger value="practice">Practice</TabsTrigger>
+                            <TabsTrigger value="tournament">Tournament</TabsTrigger>
+                          </TabsList>
+                        </Tabs>
+                      </div>
+
+                      {isTournamentMode ? (
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Tournament</label>
+                          {activeTournaments.length > 0 ? (
+                            <Select
+                              value={selectedTournament || ''}
+                              onValueChange={(value) => {
+                                setSelectedTournament(value);
+                                const t = activeTournaments.find((t) => t.id === value);
+                                if (t) {
+                                  setDifficulty(t.difficulty as 'easy' | 'medium' | 'hard');
+                                }
+                              }}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select Tournament" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {activeTournaments.map((t) => (
+                                  <SelectItem key={t.id} value={t.id}>
+                                    {t.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <div className="bg-muted p-2 rounded text-sm text-center">
+                              No active tournaments
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <>
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium">Difficulty</label>
+                            <Select
+                              value={difficulty}
+                              onValueChange={(value) =>
+                                setDifficulty(value as 'easy' | 'medium' | 'hard')
+                              }
+                            >
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="easy">Easy (6 pairs)</SelectItem>
+                                <SelectItem value="medium">Medium (8 pairs)</SelectItem>
+                                <SelectItem value="hard">Hard (12 pairs)</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium">Card Set</label>
+                            <Select
+                              value={cardSet}
+                              onValueChange={(value) => setCardSet(value as 'set1' | 'set2')}
+                            >
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="set1">Solana Symbols</SelectItem>
+                                <SelectItem value="set2">Crypto Icons</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </>
+                      )}
+
+                      <Button
+                        onClick={initializeGame}
+                        disabled={isTournamentMode && (!selectedTournament || !connected)}
+                        className="mt-2"
+                      >
+                        {isLoading ? <Spinner size="sm" className="mr-2" /> : null}
+                        Start Game
+                      </Button>
+
+                      {isTournamentMode && !connected && (
+                        <div className="text-sm text-amber-400 text-center">
+                          Connect wallet to play tournament mode
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {renderStatsCard()}
+              </div>
+            )}
+
+            {gameActive && <div className="mb-4">{renderStatsCard()}</div>}
+
+            {/* Game Board */}
+            <div className="bg-card rounded-lg p-4 border-2">
+              {cards.length > 0 ? (
+                <div className={`grid ${getGridColumns()} gap-2 sm:gap-4 place-items-center`}>
+                  {cards.map((card, index) => renderCard(card, index))}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-80 text-center">
+                  <h3 className="text-xl font-semibold mb-2">Welcome to Solana Memory Game!</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Select your game options and click &quot;Start Game&quot; to begin.
+                  </p>
+                  <img
+                    src={CARD_BACK_URL}
+                    alt="Memory Game"
+                    className="w-24 h-24 object-contain opacity-60"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Sidebar: Leaderboard + Rules */}
+          <div className="space-y-6">
+            <Leaderboard difficulty={difficulty} refreshTrigger={leaderboardRefreshTrigger} />
+
+            <Card>
+              <CardContent className="pt-6">
+                <h3 className="font-semibold mb-2">How to Play</h3>
+                <ul className="text-sm text-muted-foreground space-y-1 list-disc pl-4">
+                  <li>Click on cards to flip them and find matching pairs.</li>
+                  <li>Each difficulty has a time limit: Easy (2 min), Medium (3 min), Hard (4 min).</li>
+                  <li>Tournament mode requires connecting a Solana wallet and paying an entry fee.</li>
+                  <li>Win prizes by ranking high on tournament leaderboards.</li>
+                </ul>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        {/* Game Result Dialog */}
+        <Dialog open={gameResultDialogOpen} onOpenChange={setGameResultDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{gameWon ? 'Congratulations! 🎉' : 'Game Over'}</DialogTitle>
+            </DialogHeader>
+
+            {gameWon ? (
+              <div className="space-y-4">
+                <p>You matched all the cards!</p>
+
+                <div className="grid grid-cols-2 gap-4 py-4">
+                  <div className="bg-muted p-3 rounded text-center">
+                    <div className="text-sm text-muted-foreground">Moves</div>
+                    <div className="text-2xl font-bold">{moves}</div>
+                  </div>
+
+                  <div className="bg-muted p-3 rounded text-center">
+                    <div className="text-sm text-muted-foreground">Time</div>
+                    <div className="text-2xl font-bold font-mono">
+                      {formatTime(gameCompleteTime || 0)}
+                    </div>
+                  </div>
+
+                  <div className="col-span-2 bg-muted p-3 rounded text-center">
+                    <div className="text-sm text-muted-foreground">Score</div>
+                    <div className="text-3xl font-bold text-primary">{finalScore}</div>
+                  </div>
+                </div>
+
+                {isTournamentMode && connected ? (
+                  <div className="bg-emerald-900/30 text-emerald-300 p-2 rounded text-center text-sm">
+                    Your score has been submitted to the tournament!
+                  </div>
+                ) : !connected ? (
+                  <div className="bg-amber-900/30 text-amber-300 p-2 rounded text-center text-sm">
+                    Connect your wallet to save your score on the leaderboard!
+                  </div>
+                ) : null}
+
+                <div className="flex space-x-2 pt-2">
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => setGameResultDialogOpen(false)}
+                  >
+                    Close
+                  </Button>
+                  <Button
+                    className="flex-1"
+                    onClick={() => {
+                      setGameResultDialogOpen(false);
+                      initializeGame();
+                    }}
+                  >
+                    Play Again
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <p>You ran out of time!</p>
+
+                <div className="grid grid-cols-3 gap-4 py-4">
+                  <div className="bg-muted p-3 rounded text-center">
+                    <div className="text-sm text-muted-foreground">Moves</div>
+                    <div className="text-xl font-bold">{moves}</div>
+                  </div>
+                  <div className="bg-muted p-3 rounded text-center">
+                    <div className="text-sm text-muted-foreground">Time</div>
+                    <div className="text-xl font-bold font-mono">
+                      {formatTime(gameCompleteTime ?? currentTime)}
+                    </div>
+                  </div>
+                  <div className="bg-muted p-3 rounded text-center col-span-1">
+                    <div className="text-sm text-muted-foreground">Score</div>
+                    <div className="text-xl font-bold text-primary">{finalScore}</div>
+                  </div>
+                </div>
+
+                <div className="flex space-x-2 pt-2">
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => setGameResultDialogOpen(false)}
+                  >
+                    Close
+                  </Button>
+                  <Button
+                    className="flex-1"
+                    onClick={() => {
+                      setGameResultDialogOpen(false);
+                      initializeGame();
+                    }}
+                  >
+                    Try Again
+                  </Button>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+      </div>
+    </div>
+  );
+}
