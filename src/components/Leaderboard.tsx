@@ -10,40 +10,43 @@ import { Badge } from '@/components/ui/badge';
 
 interface LeaderboardProps {
   difficulty: 'easy' | 'medium' | 'hard';
+  refreshTrigger: number;
   className?: string;
 }
 
-export function Leaderboard({ difficulty, className }: LeaderboardProps) {
+export default function Leaderboard({ difficulty, refreshTrigger, className }: LeaderboardProps) {
   const { publicKey } = useWallet();
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [tournamentLeaderboard, setTournamentLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [tournament, setTournament] = useState<Tournament | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
-  const [activeTab, setActiveTab] = useState<string>('regular');
   const [prizeDistribution, setPrizeDistribution] = useState<{ rank: number; percentage: number; amount: number }[]>([]);
 
-  // Load leaderboard and tournament data
+  const formatScore = (score?: number) => {
+    if (typeof score === 'number' && Number.isFinite(score)) {
+      return score.toLocaleString();
+    }
+
+    return '0';
+  };
+
+  // Load leaderboard and tournament data whenever inputs change
   useEffect(() => {
     const loadData = () => {
-      // Regular leaderboard
       const regularLeaderboard = LeaderboardManager.getLeaderboardByDifficulty(difficulty);
-      setLeaderboard(regularLeaderboard.slice(0, 10)); // Show top 10
+      setLeaderboard(regularLeaderboard.slice(0, 10));
 
-      // Get active tournament
       const activeTournament = LeaderboardManager.getActiveTournamentByDifficulty(difficulty);
       setTournament(activeTournament);
 
-      // If tournament exists, get tournament leaderboard
       if (activeTournament) {
         const tournamentLeaderboardData = LeaderboardManager.getTournamentLeaderboard(activeTournament.id);
-        setTournamentLeaderboard(tournamentLeaderboardData.slice(0, 10)); // Show top 10
+        setTournamentLeaderboard(tournamentLeaderboardData.slice(0, 10));
 
-        // Calculate prize distribution
         const prizes = TournamentManager.calculatePrizeDistribution(activeTournament.id);
         setPrizeDistribution(prizes);
 
-        // Update time remaining
         const remaining = LeaderboardManager.getTournamentTimeRemaining(activeTournament.id);
         setTimeRemaining(formatTimeRemaining(remaining));
       } else {
@@ -55,18 +58,20 @@ export function Leaderboard({ difficulty, className }: LeaderboardProps) {
       setLoading(false);
     };
 
+    setLoading(true);
     loadData();
+  }, [difficulty, publicKey, refreshTrigger]);
 
-    // Update time remaining every second
+  // Update tournament countdown every second
+  useEffect(() => {
+    if (!tournament) return;
     const interval = setInterval(() => {
-      if (tournament) {
-        const remaining = LeaderboardManager.getTournamentTimeRemaining(tournament.id);
-        setTimeRemaining(formatTimeRemaining(remaining));
-      }
+      const remaining = LeaderboardManager.getTournamentTimeRemaining(tournament.id);
+      setTimeRemaining(formatTimeRemaining(remaining));
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [difficulty, publicKey]);
+  }, [tournament]);
 
   if (loading) {
     return (
@@ -90,7 +95,7 @@ export function Leaderboard({ difficulty, className }: LeaderboardProps) {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <Tabs defaultValue="regular" onValueChange={setActiveTab}>
+        <Tabs defaultValue="regular">
           <TabsList className="grid grid-cols-2 mb-4">
             <TabsTrigger value="regular">All Time</TabsTrigger>
             <TabsTrigger value="tournament" disabled={!tournament}>
@@ -120,7 +125,7 @@ export function Leaderboard({ difficulty, className }: LeaderboardProps) {
                       <span className="text-sm font-medium w-5">{index + 1}</span>
                       <span className="text-sm">{truncateWalletAddress(entry.playerWallet)}</span>
                     </div>
-                    <span className="text-sm font-mono">{entry.score}</span>
+                    <span className="text-sm font-mono">{formatScore(entry.score)}</span>
                   </div>
                 ))}
               </div>
@@ -175,7 +180,7 @@ export function Leaderboard({ difficulty, className }: LeaderboardProps) {
                           </span>
                           <span className="text-sm">{truncateWalletAddress(entry.playerWallet)}</span>
                         </div>
-                        <span className="text-sm font-mono">{entry.score}</span>
+                        <span className="text-sm font-mono">{formatScore(entry.score)}</span>
                       </div>
                     ))}
                   </div>
@@ -188,5 +193,3 @@ export function Leaderboard({ difficulty, className }: LeaderboardProps) {
     </Card>
   );
 }
-
-export default Leaderboard;
