@@ -42,14 +42,18 @@ export class LeaderboardManager {
     tournamentId?: string
   ): LeaderboardEntry {
     try {
+      const normalizedScore = Number.isFinite(score) ? Math.max(0, Math.round(score)) : 0;
+      const normalizedMoves = Number.isFinite(moves) ? Math.max(0, Math.round(moves)) : 0;
+      const normalizedTime = Number.isFinite(time) ? Math.max(0, Math.round(time)) : 0;
+
       // Create entry
       const entry: LeaderboardEntry = {
         id: uuidv4(),
         playerWallet,
-        score,
+        score: normalizedScore,
         difficulty,
-        moves,
-        time,
+        moves: normalizedMoves,
+        time: normalizedTime,
         date: new Date(),
         tournamentId
       };
@@ -79,11 +83,34 @@ export class LeaderboardManager {
   static getLeaderboard(): LeaderboardEntry[] {
     try {
       const leaderboardData = localStorage.getItem(this.LEADERBOARD_STORAGE_KEY);
-      return leaderboardData ? JSON.parse(leaderboardData) : [];
+      if (!leaderboardData) {
+        return [];
+      }
+
+      const parsed = JSON.parse(leaderboardData);
+      if (!Array.isArray(parsed)) {
+        return [];
+      }
+
+      return parsed.map((entry) => this.normalizeEntry(entry));
     } catch (error) {
       console.error('Error getting leaderboard:', error);
       return [];
     }
+  }
+
+  private static normalizeEntry(entry: any): LeaderboardEntry {
+    const fallbackDate = entry?.date ? new Date(entry.date) : new Date();
+    return {
+      id: entry?.id ?? uuidv4(),
+      playerWallet: entry?.playerWallet ?? 'Unknown Player',
+      score: Number.isFinite(Number(entry?.score)) ? Number(entry.score) : 0,
+      difficulty: entry?.difficulty ?? 'easy',
+      moves: Number.isFinite(Number(entry?.moves)) ? Number(entry.moves) : 0,
+      time: Number.isFinite(Number(entry?.time)) ? Number(entry.time) : 0,
+      date: fallbackDate,
+      tournamentId: entry?.tournamentId
+    };
   }
 
   /**
