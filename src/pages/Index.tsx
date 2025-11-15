@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -15,26 +15,40 @@ import { LeaderboardManager } from '@/lib/leaderboard';
 import { TournamentManager } from '@/lib/tournament';
 import { formatTime, shuffleArray } from '@/lib/utils';
 
-// Define card types
-interface Card {
+const withBasePath = (path: string) => {
+  const base = import.meta.env.BASE_URL || '/';
+  const normalizedBase = base.endsWith('/') ? base : `${base}/`;
+  const normalizedPath = path.startsWith('/') ? path.slice(1) : path;
+  return `${normalizedBase}${normalizedPath}`;
+};
+
+interface MemoryCard {
   id: number;
   imageUrl: string;
   isFlipped: boolean;
   isMatched: boolean;
 }
 
-// Define game difficulty settings
 const DIFFICULTY_SETTINGS = {
-  easy: { cardPairs: 6, timeLimit: 120 },      // 12 cards
-  medium: { cardPairs: 8, timeLimit: 180 },    // 16 cards
-  hard: { cardPairs: 12, timeLimit: 240 },     // 24 cards
+  easy: { cardPairs: 6, timeLimit: 120 },
+  medium: { cardPairs: 8, timeLimit: 180 },
+  hard: { cardPairs: 12, timeLimit: 240 },
+} as const;
+
+const CARD_DIMENSIONS: Record<'easy' | 'medium' | 'hard', { width: number; height: number }> = {
+  easy: { width: 148, height: 196 },
+  medium: { width: 132, height: 178 },
+  hard: { width: 112, height: 152 },
 };
 
-// Define card image sets
-const CARD_SETS = {
-  set1: Array.from({ length: 8 }, (_, i) => `/assets/images/cards/set1_${i + 1}.png`),
-  set2: Array.from({ length: 8 }, (_, i) => `/assets/images/cards/set2_${i + 1}.png`),
+const CARD_SETS: Record<'set1' | 'set2', string[]> = {
+  set1: Array.from({ length: 8 }, (_, i) => withBasePath(`assets/images/cards/set1_${i + 1}.png`)),
+  set2: Array.from({ length: 8 }, (_, i) => withBasePath(`assets/images/cards/set2_${i + 1}.png`)),
 };
+
+const CARD_BACK_URL = withBasePath('assets/images/cards/card-back.png');
+const BACKGROUND_URL = withBasePath('assets/images/background.png');
+const LOGO_URL = withBasePath('assets/images/logo.png');
 
 export default function MemoryGame() {
   const { connection } = useConnection();
@@ -42,14 +56,13 @@ export default function MemoryGame() {
   const { publicKey, connected } = wallet;
   
   // Game state
-  const [cards, setCards] = useState<Card[]>([]);
+  const [cards, setCards] = useState<MemoryCard[]>([]);
   const [firstCard, setFirstCard] = useState<number | null>(null);
   const [secondCard, setSecondCard] = useState<number | null>(null);
   const [moves, setMoves] = useState<number>(0);
   const [gameOver, setGameOver] = useState<boolean>(false);
   const [gameWon, setGameWon] = useState<boolean>(false);
   const [gameActive, setGameActive] = useState<boolean>(false);
-  const [gameStartTime, setGameStartTime] = useState<number | null>(null);
   const [gameCompleteTime, setGameCompleteTime] = useState<number | null>(null);
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [finalScore, setFinalScore] = useState<number>(0);
@@ -117,16 +130,16 @@ export default function MemoryGame() {
 
     // Get configuration based on difficulty
     const config = DIFFICULTY_SETTINGS[difficulty];
-    const cardImages = CARD_SETS[cardSet];
-    
+    const cardImages = CARD_SETS[cardSet] ?? CARD_SETS.set1;
+
     // Create pairs of cards based on difficulty
     const cardPairs = config.cardPairs;
-    
-    // Ensure we have enough images for the selected difficulty
-    const selectedImages = cardImages.slice(0, cardPairs);
+
+    const imagePool = cardImages.length > 0 ? cardImages : [CARD_BACK_URL];
+    const selectedImages = Array.from({ length: cardPairs }, (_, index) => imagePool[index % imagePool.length]);
     
     // Create pairs
-    let cardData: Card[] = [];
+    let cardData: MemoryCard[] = [];
     selectedImages.forEach((image, index) => {
       // Create two cards with the same image
       const card1 = {
@@ -156,7 +169,6 @@ export default function MemoryGame() {
     setGameOver(false);
     setGameWon(false);
     setGameActive(true);
-    setGameStartTime(Date.now());
     setGameCompleteTime(null);
     setCurrentTime(0);
     
@@ -204,7 +216,7 @@ export default function MemoryGame() {
     } else {
       // Second card selected
       setSecondCard(index);
-      setMoves(moves + 1);
+      setMoves((prev) => prev + 1);
       
       // Check for a match
       if (cards[firstCard].imageUrl === cards[index].imageUrl) {
@@ -311,8 +323,9 @@ export default function MemoryGame() {
   };
   
   // Render card
-  const renderCard = (card: Card, index: number) => {
+  const renderCard = (card: MemoryCard, index: number) => {
     const isRevealed = card.isFlipped || card.isMatched;
+    const { width, height } = CARD_DIMENSIONS[difficulty] ?? CARD_DIMENSIONS.medium;
 
     return (
       <button
@@ -321,27 +334,45 @@ export default function MemoryGame() {
         onClick={() => handleCardClick(index)}
         disabled={!gameActive || card.isMatched || gameOver}
         aria-pressed={isRevealed}
-        className={`relative w-24 h-32 sm:w-28 sm:h-36 md:w-32 md:h-40 lg:w-36 lg:h-48 rounded-xl border-2 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-primary/50 ${
+        className={`relative rounded-2xl border transition-shadow duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 ${
           card.isMatched
-            ? 'border-green-500 shadow-lg shadow-emerald-500/40'
-            : 'border-violet-400 shadow-lg shadow-violet-500/30 hover:scale-105'
-        } ${!gameActive || gameOver ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'}`}
+            ? 'border-emerald-400 shadow-lg shadow-emerald-500/40'
+            : 'border-indigo-400/70 shadow shadow-indigo-500/20 hover:shadow-indigo-500/40'
+        } ${!gameActive || gameOver ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}`}
+        style={{ width, height }}
       >
-        <span className="absolute inset-0 rounded-[0.9rem] overflow-hidden bg-slate-900 flex items-center justify-center">
+        <div className="absolute inset-0 rounded-2xl overflow-hidden bg-slate-950/90">
           <img
-            src={isRevealed ? card.imageUrl : '/assets/images/cards/card-back.png'}
-            alt="Memory card"
-            className="h-full w-full object-cover"
+            src={card.imageUrl}
+            alt="Card front"
+            className={`absolute inset-0 h-full w-full object-contain p-3 transition-opacity duration-300 ${
+              isRevealed ? 'opacity-100' : 'opacity-0'
+            }`}
+            draggable={false}
+            onError={(event) => {
+              (event.currentTarget as HTMLImageElement).src = CARD_BACK_URL;
+            }}
+          />
+
+          <img
+            src={CARD_BACK_URL}
+            alt="Card back"
+            className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-300 ${
+              isRevealed ? 'opacity-0' : 'opacity-100'
+            }`}
             draggable={false}
           />
-        </span>
 
-        {!isRevealed && (
-          <span className="absolute inset-0 rounded-[0.9rem] bg-gradient-to-br from-violet-500 via-indigo-500 to-blue-600 mix-blend-overlay opacity-80" />
-        )}
+          {!isRevealed && (
+            <span className="absolute inset-0 bg-gradient-to-br from-violet-600/50 via-indigo-600/60 to-blue-500/50 mix-blend-soft-light" />
+          )}
+        </div>
 
         {card.isMatched && (
-          <span className="absolute inset-0 rounded-[0.9rem] border-4 border-green-400/70 animate-pulse" aria-hidden="true" />
+          <span
+            className="absolute inset-1 rounded-2xl border-4 border-emerald-300/80 animate-pulse pointer-events-none"
+            aria-hidden="true"
+          />
         )}
       </button>
     );
@@ -410,10 +441,10 @@ export default function MemoryGame() {
   );
 
   return (
-    <div className="min-h-screen bg-cover bg-center" style={{ backgroundImage: "url('/assets/images/background.png')" }}>
+    <div className="min-h-screen bg-cover bg-center" style={{ backgroundImage: `url(${BACKGROUND_URL})` }}>
       <div className="mx-auto max-w-full py-8 px-4">
       <div className="text-center mb-8">
-        <img src="/assets/images/logo.png" alt="Solana Memory Game Logo" className="h-24 mx-auto mb-4" />
+        <img src={LOGO_URL} alt="Solana Memory Game Logo" className="h-24 mx-auto mb-4" />
         <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-purple-400 to-blue-500 bg-clip-text text-transparent mb-2">
           Solana Memory Game
         </h1>
@@ -545,8 +576,8 @@ export default function MemoryGame() {
                 <p className="text-muted-foreground mb-4">
                   Select your game options and click 'Start Game' to begin.
                 </p>
-                <img 
-                  src="/assets/images/cards/card-back.png"
+                <img
+                  src={CARD_BACK_URL}
                   alt="Memory Game"
                   className="w-24 h-24 object-contain opacity-60"
                 />
